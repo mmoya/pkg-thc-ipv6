@@ -4,6 +4,10 @@ thc-ipv6 (2.0-1) unstable; urgency=low
   * Move to 3.0 (quilt) format.
   * Bump compat level to 7.
   * Bumb Standard Version to 3.9.3.
+  * Adjusted the Makefile to fix prefix path.
+  * Adjusted the Makefile to remove language extension from scripts.
+  * Fix dos_mld syntax check.
+  * Build with hardening options.
 
  -- Maykel Moya <mmoya@mmoya.org>  Mon, 22 Oct 2012 13:29:16 +0000
 
