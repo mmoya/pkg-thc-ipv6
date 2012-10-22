@@ -1,8 +1,7 @@
 Source: thc-ipv6
 Section: net
 Priority: optional
-Maintainer: Michael Gebetsroither <gebi@grml.org>
-Uploaders: Michael Prokop <mika@grml.org>
+Maintainer: Maykel Moya <mmoya@mmoya.org>
 Build-Depends: debhelper (>= 5), libpcap0.8-dev, libssl-dev
 Standards-Version: 3.9.3
 
