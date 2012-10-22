@@ -1,0 +1,38 @@
+Source: thc-ipv6
+Section: net
+Priority: optional
+Maintainer: Michael Gebetsroither <gebi@grml.org>
+Uploaders: Michael Prokop <mika@grml.org>
+Build-Depends: debhelper (>= 5), libpcap0.8-dev, libssl-dev
+Standards-Version: 3.9.1
+
+Package: attack-toolkit6
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Homepage: http://www.thc.org/thc-ipv6/
+Description: The Hacker Choice's IPv6 Attack Toolkit
+ A large tool set to attack protocol weaknesses of IPv6 and ICMP6.
+ .
+ Some of the tools included:
+ .
+ alive6: an effective alive scanning.
+ denial6: try a collection of denial-of-service tests againsts a
+          target.
+ detect-new-ip6: detect new ip6 devices which join the network.
+ dnsdict6: parallized dns ipv6 dictionary bruteforcer.
+ dos-new-ip6: detect new ip6 devices and tell them that their chosen
+              IP collides on the network (DOS).
+ exploit6: test known ipv6 vulnerabilities against a target.
+ fake_mld6: announce yourself in a multicast group of your choice on
+            the net.
+ fake_router6: announce yourself as a router on the network.
+ flood_advertise6: flood a target with random neighbor advertisements.
+ flood_router6: flood a target with random router advertisements.
+ implementation6: performs various implementation checks on ipv6.
+ parasite6: icmp neighbor solitication/advertisement spoofer.
+ redir6: redirect traffic to you intelligently (man-in-the-middle)
+         with a clever icmp6 redirect spoofer.
+ rsmurf6: remote smurfer (known to work only against linux at the
+          moment).
+ thcping6: sends a hand crafted ping6 packet.
+ toobig6: mtu decreaser with the same intelligence as redir6.

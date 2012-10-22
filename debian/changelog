@@ -1,0 +1,75 @@
+thc-ipv6 (2.0-1) unstable; urgency=low
+
+  * New upstream release (closes: #690520).
+  * Move to 3.0 (quilt) format.
+
+ -- Maykel Moya <mmoya@mmoya.org>  Mon, 22 Oct 2012 13:29:16 +0000
+
+thc-ipv6 (1.4-1) unstable; urgency=low
+
+  * [325b41d] New upstream version 1.4 [Closes: issue948]
+    - [05322ea] adapt for added binaries
+    - [533f8f1] add missing tools to thc-ipv6.8
+
+  * General cleanups:
+    - [7e0c7c3] Remove last patch and dpatch support
+    - [f1068e8] don't ignore failures on clean
+    - [304a85d] update to Standards-Version 3.9.1
+    - [a6e3243] update manpage from upstream
+
+ -- Christian Hofstaedtler <ch@grml.org>  Mon, 14 Mar 2011 23:04:51 +0100
+
+thc-ipv6 (0.7-5) unstable; urgency=low
+
+  [ Michael Prokop ]
+  * Add dpatch to Build-Depends, remove gcc
+
+  [ Michael Gebetsroither ]
+  * make debian/rules umask independent
+  * build system fixes
+
+ -- Michael Gebetsroither <gebi@grml.org>  Sun, 13 May 2007 22:17:25 +0200
+
+thc-ipv6 (0.7-4) unstable; urgency=low
+
+  * added copy of homepage for license clarification
+
+ -- Michael Gebetsroither <gebi@grml.org>  Sat, 21 Apr 2007 17:38:26 +0200
+
+thc-ipv6 (0.7-3) unstable; urgency=low
+
+  * fix umask build problem
+
+ -- Michael Gebetsroither <gebi@grml.org>  Fri, 20 Apr 2007 10:42:39 +0200
+
+thc-ipv6 (0.7-2) unstable; urgency=low
+
+  * Add libssl-dev to build-depends
+  * Changed email to gebi@grml.org
+  * compile all binaries with -fstack-protector-all
+
+ -- Michael Gebetsroither <gebi@grml.org>  Thu,  8 Feb 2007 20:54:25 +0100
+
+thc-ipv6 (0.7-1) unstable; urgency=low
+
+  * New upstream release.
+  * Bumb Standard Version to 3.7.2 (no further changes).
+  * Clean up debian/rules.
+  * Add libpcap0.8-dev and gcc to build-depends.
+  * Add myself to uploaders.
+
+ -- Michael Prokop <mika@grml.org>  Wed, 29 Nov 2006 22:48:37 +0100
+
+thc-ipv6 (0.6-2) unstable; urgency=low
+
+  * Few package corrections
+  * Added manpages for packages
+
+ -- Michael Gebetsroither <michael.geb@gmx.at>  Wed, 28 Jun 2006 13:41:24 +0200
+
+thc-ipv6 (0.6-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Michael Gebetsroither <michael.geb@gmx.at>  Wed, 28 Jun 2006 12:07:38 +0200
+
