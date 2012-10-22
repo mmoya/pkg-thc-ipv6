@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Michael Gebetsroither <gebi@grml.org>
 Uploaders: Michael Prokop <mika@grml.org>
 Build-Depends: debhelper (>= 5), libpcap0.8-dev, libssl-dev
-Standards-Version: 3.9.1
+Standards-Version: 3.9.3
 
 Package: attack-toolkit6
 Architecture: any

@@ -3,6 +3,7 @@ thc-ipv6 (2.0-1) unstable; urgency=low
   * New upstream release (closes: #690520).
   * Move to 3.0 (quilt) format.
   * Bump compat level to 7.
+  * Bumb Standard Version to 3.9.3.
 
  -- Maykel Moya <mmoya@mmoya.org>  Mon, 22 Oct 2012 13:29:16 +0000
 
