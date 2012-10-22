@@ -8,9 +8,11 @@ usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/detect_sniffer6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/dnsdict6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/dnsrevenum6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/dos-new-ip6.8.gz
-usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/dos_mld.sh.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/dos_mld.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/dump_router6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/exploit6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/extract_hosts6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/extract_networks6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/fake_advertise6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/fake_dhcps6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/fake_dns6d.8.gz
