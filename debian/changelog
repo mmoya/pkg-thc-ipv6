@@ -8,6 +8,8 @@ thc-ipv6 (2.0-1) unstable; urgency=low
   * Adjusted the Makefile to remove language extension from scripts.
   * Fix dos_mld syntax check.
   * Build with hardening options.
+  * Disable linking against OpenSSL because a link exemption is not
+    yet available.
 
  -- Maykel Moya <mmoya@mmoya.org>  Mon, 22 Oct 2012 13:29:16 +0000
 
