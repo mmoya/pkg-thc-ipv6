@@ -232,6 +232,9 @@ void thc_notation2beauty(unsigned char *ipv6) {
       ipv6[strlen(ipv6) - 1] = 0;
   } else
     strcpy(ipv6, buf);
+//  if (strncmp(ipv6, "::ffff:", 7) == 0 && strlen(ipv6) <= 16) {
+//    printf("XXX beauty for ::ffff:123.123.132.123\n");
+//  }
 }
 
 unsigned char *thc_ipv62string(unsigned char *ipv6) {
@@ -946,9 +949,10 @@ int thc_send_as_fragment6(char *interface, unsigned char *src, unsigned char *ds
 
   if (frag_len > mymtu - 48)
     frag_len = mymtu - 48;
-
   if (frag_len % 8 > 0)
     frag_len = (frag_len / 8) * 8;
+  if (frag_len < 8)
+    frag_len = 8;
 
   if ((srcmac = thc_get_own_mac(interface)) == NULL)
     return -1;
@@ -993,6 +997,265 @@ int thc_send_as_fragment6(char *interface, unsigned char *src, unsigned char *ds
     pkt = thc_destroy_packet(pkt);
     count--;
   }
+  free(srcmac);
+  free(dstmac);
+  return 0;
+}
+
+// overlap_spoof_types:
+//   -1 = icmpv6 toobig
+//    0 = icmpv6 echo request
+//    1-65535 = tcp (dst port)
+//
+int thc_send_as_overlapping_last_fragment6(char *interface, unsigned char *src, unsigned char *dst, unsigned char type, unsigned char *data, int data_len, int frag_len, int overlap_spoof_type) {
+  unsigned char *pkt = NULL, *srcmac, *dstmac;
+  int pkt_len, mymtu = thc_get_mtu(interface);
+  unsigned char buf[frag_len], *adata;
+  int count, id = time(NULL) % 2000000000, dptr = 0, last_size, run = 0;
+
+  if (overlap_spoof_type < -1 && overlap_spoof_type > 65535) {
+    fprintf(stderr, "Error: invalid overlap_spoof_type: %d\n", overlap_spoof_type);
+    return -1;
+  }
+
+  if (frag_len > mymtu - 56) // we need extra bytes for hdr, frag + overlap
+    frag_len = mymtu - 56;
+  if (frag_len % 8 > 0)
+    frag_len = (frag_len / 8) * 8;
+  if (frag_len < 8)
+    frag_len = 24;
+
+  if ((srcmac = thc_get_own_mac(interface)) == NULL)
+    return -1;
+  if ((dstmac = thc_get_mac(interface, src, dst)) == NULL) {
+    free(srcmac);
+    return -1;
+  }
+
+  if ((adata = malloc(data_len + frag_len + 8)) == NULL) {
+    fprintf(stderr, "Error: unable to allocate %d bytes of memory\n", data_len + frag_len - 8);
+    free(srcmac);
+    free(dstmac);
+    return -1;
+  }
+
+  memset(adata, 0, frag_len + 8);
+  memcpy(adata + frag_len + 8, data, data_len);
+  data_len += frag_len + 8; // only offset + length for pk2 #2 must be changed
+
+  adata[0] = NXT_DST;
+  adata[1] = ((frag_len - 16) / 8) - 1;
+  if (overlap_spoof_type < 1) {
+    adata[frag_len - 16] = NXT_ICMP6;
+    adata[frag_len - 6] = getpid() % 256; // fake chksum for icmp
+    adata[frag_len - 5] = getpid() / 256;
+    if (overlap_spoof_type == 0) {
+      adata[frag_len - 8] = ICMP6_PING;
+      adata[frag_len - 1] = 1;   // seq 1
+    } else {
+      adata[frag_len - 8] = ICMP6_TOOBIG;
+      adata[frag_len - 2] = 5;   // mtu 1280
+    }
+  } else {
+    adata[frag_len - 16] = NXT_TCP;
+    adata[frag_len - 8] = 44;  // scrport
+    adata[frag_len - 7] = 44;
+    adata[frag_len - 6] = overlap_spoof_type / 256; // dstport
+    adata[frag_len - 5] = overlap_spoof_type % 256;
+    adata[frag_len - 4] = 1;
+    adata[frag_len - 3] = getpid() % 256; // fake seq num
+    adata[frag_len - 2] = getpid() % 256; // fake seq num
+    adata[frag_len - 1] = 2;
+  }
+  adata[frag_len] = type;
+
+  count = data_len / frag_len;
+  if (data_len % frag_len > 0) {
+    count++;
+    last_size = data_len % frag_len;
+  } else
+    last_size = frag_len;
+
+  if (debug)
+    printf("DEBUG: data to fragment has size of %d bytes (incl. spoof data), sending %d packets with size %d, last packet has %d bytes\n", data_len, count, frag_len, last_size);
+
+  while (count) {
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 0, 0, 0, 0, 0)) == NULL) {
+      free(srcmac);
+      free(dstmac);
+      return -1;
+    }
+    if (thc_add_hdr_fragment(pkt, &pkt_len, dptr / 8, count == 1 ? 0 : 1, id)) {
+      free(srcmac);
+      free(dstmac);
+      return -1;
+    }
+
+    if (count > 1)
+      memcpy(buf, adata + run * frag_len, frag_len);
+    else
+      memcpy(buf, adata + run * frag_len, last_size);
+
+    if (thc_add_data6(pkt, &pkt_len, NXT_DST, buf, count == 1 ? last_size : frag_len)) {
+      free(srcmac);
+      free(dstmac);
+      return -1;
+    }
+
+    dptr += frag_len;
+    if (run == 0)
+      dptr -= 16;
+
+    thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt, &pkt_len);
+    pkt = thc_destroy_packet(pkt);
+    run++;
+    count--;
+  }
+
+  free(adata);
+  free(srcmac);
+  free(dstmac);
+  return 0;
+}
+
+// overlap_spoof_types:
+//   -1 = icmpv6 toobig
+//    0 = icmpv6 echo request
+//    1-65535 = tcp (dst port)
+//
+int thc_send_as_overlapping_first_fragment6(char *interface, unsigned char *src, unsigned char *dst, unsigned char type, unsigned char *data, int data_len, int frag_len, int overlap_spoof_type) {
+  unsigned char *pkt = NULL, *srcmac, *dstmac;
+  int pkt_len, mymtu = thc_get_mtu(interface);
+  unsigned char buf[frag_len], *adata;
+  int count, id = time(NULL) % 2000000000, dptr = 0, last_size, run = 0;
+
+  if (overlap_spoof_type < -1 && overlap_spoof_type > 65535) {
+    fprintf(stderr, "Error: invalid overlap_spoof_type: %d\n", overlap_spoof_type);
+    return -1;
+  }
+
+  if (frag_len > mymtu - 56) // we need extra bytes for hdr, frag + overlap
+    frag_len = mymtu - 56;
+  if (frag_len % 8 > 0)
+    frag_len = (frag_len / 8) * 8;
+  if (frag_len < 8)
+    frag_len = 24;
+
+  if ((srcmac = thc_get_own_mac(interface)) == NULL)
+    return -1;
+  if ((dstmac = thc_get_mac(interface, src, dst)) == NULL) {
+    free(srcmac);
+    return -1;
+  }
+
+  if ((adata = malloc(data_len + frag_len + 8)) == NULL) {
+    fprintf(stderr, "Error: unable to allocate %d bytes of memory\n", data_len + frag_len - 8);
+    free(srcmac);
+    free(dstmac);
+    return -1;
+  }
+
+  memset(adata, 0, frag_len + 8);
+  memcpy(adata + frag_len + 8, data, data_len);
+  data_len += frag_len + 8; // only offset + length for pk2 #2 must be changed
+
+  adata[0] = NXT_DST;
+  adata[1] = ((frag_len - 16) / 8) - 1;
+  if (overlap_spoof_type < 1) {
+    adata[frag_len - 16] = NXT_ICMP6;
+    adata[frag_len - 6] = getpid() % 256; // fake chksum for icmp
+    adata[frag_len - 5] = getpid() / 256;
+    if (overlap_spoof_type == 0) {
+      adata[frag_len - 8] = ICMP6_PING;
+      adata[frag_len - 1] = 1;   // seq 1
+    } else {
+      adata[frag_len - 8] = ICMP6_TOOBIG;
+      adata[frag_len - 2] = 5;   // mtu 1280
+    }
+  } else {
+    adata[frag_len - 16] = NXT_TCP;
+    adata[frag_len - 8] = 44;  // scrport
+    adata[frag_len - 7] = 44;
+    adata[frag_len - 6] = overlap_spoof_type / 256; // dstport
+    adata[frag_len - 5] = overlap_spoof_type % 256;
+    adata[frag_len - 4] = 1;
+    adata[frag_len - 3] = getpid() % 256; // fake seq num
+    adata[frag_len - 2] = getpid() % 256; // fake seq num
+    adata[frag_len - 1] = 2;
+  }
+  adata[frag_len] = type;
+
+  count = data_len / frag_len;
+  if (data_len % frag_len > 0) {
+    count++;
+    last_size = data_len % frag_len;
+  } else
+    last_size = frag_len;
+
+  if (debug)
+    printf("DEBUG: data to fragment has size of %d bytes (incl. spoof data), sending %d packets with size %d, last packet has %d bytes\n", data_len, count, frag_len, last_size);
+
+  while (count) {
+    if (run > 0) {
+      if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 0, 0, 0, 0, 0)) == NULL) {
+        free(srcmac);
+        free(dstmac);
+        return -1;
+      }
+      if (thc_add_hdr_fragment(pkt, &pkt_len, dptr / 8, count == 1 ? 0 : 1, id)) {
+        free(srcmac);
+        free(dstmac);
+        return -1;
+      }
+
+      if (count > 1)
+        memcpy(buf, adata + run * frag_len, frag_len);
+      else
+        memcpy(buf, adata + run * frag_len, last_size);
+
+      if (thc_add_data6(pkt, &pkt_len, NXT_DST, buf, count == 1 ? last_size : frag_len)) {
+        free(srcmac);
+        free(dstmac);
+        return -1;
+      }
+
+      thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt, &pkt_len);
+      pkt = thc_destroy_packet(pkt);
+    }
+
+    dptr += frag_len;
+    if (run == 0)
+      dptr -= 16;
+
+    run++;
+    count--;
+  }
+
+  // now we send the first pkt
+  if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 0, 0, 0, 0, 0)) == NULL) {
+    free(srcmac);
+    free(dstmac);
+    return -1;
+  }
+
+  if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 1, id)) {
+    free(srcmac);
+    free(dstmac);
+    return -1;
+  }
+
+  memcpy(buf, adata, frag_len);
+
+  if (thc_add_data6(pkt, &pkt_len, NXT_DST, buf, frag_len)) {
+    free(srcmac);
+    free(dstmac);
+    return -1;
+  }
+
+  thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt, &pkt_len);
+  pkt = thc_destroy_packet(pkt);
+
+  free(adata);
   free(srcmac);
   free(dstmac);
   return 0;

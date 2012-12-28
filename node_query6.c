@@ -11,7 +11,7 @@
 #include "thc-ipv6.h"
 
 char *frbuf, *frbuf2, *frint, buf3[1504];
-int frbuflen, frbuf2len, do_hop = 0, do_frag = 0, do_dst = 0, type = NXT_ICMP6, seen = 0;
+int frbuflen, frbuf2len, do_hop = 0, do_frag = 0, do_dst = 0, type = NXT_ICMP6, seen = 0, ret = -1;
 unsigned char *frip6, *frmac, *frdst;
 thc_ipv6_hdr *frhdr = NULL;
 
@@ -24,7 +24,7 @@ void help(char *prg) {
 }
 
 void dump_node_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned char *data) {
-  unsigned char *ipv6hdr = (unsigned char *) (data + 14);
+  unsigned char *ipv6hdr = (unsigned char *) (data + 14), *ptr;
   int i, len = header->caplen - 14;
 
   if (do_hdr_size) {
@@ -37,6 +37,8 @@ void dump_node_reply(u_char *foo, const struct pcap_pkthdr *header, const unsign
   if (ipv6hdr[6] != NXT_ICMP6 || ipv6hdr[40] != ICMP6_INFOREPLY || len < 40 + 16)
     return;
 
+  ret = 0;
+
   printf("Reply from %s:\n", thc_ipv62notation(ipv6hdr + 8));
   switch (ipv6hdr[45]) {
   case 2:
@@ -44,6 +46,12 @@ void dump_node_reply(u_char *foo, const struct pcap_pkthdr *header, const unsign
     if (len <= 60) {
       printf("empty\n");
     } else {
+      ptr = ipv6hdr + 61;
+      while (*ptr != 0) {
+        if (*ptr > 0 && *ptr < 32)
+          *ptr = '.';
+        ptr++;
+      }
       printf("%s\n", ipv6hdr + 61);
     }
     seen++;
@@ -115,7 +123,10 @@ int main(int argc, char *argv[]) {
 
   interface = argv[optind];
   mac6 = thc_get_own_mac(interface);
-  dst = thc_resolve6(argv[2]);
+  if ((dst = thc_resolve6(argv[2])) == NULL) {
+    fprintf(stderr, "Error: could not resolve %s\n", argv[2]);
+    return -1;
+  }
 
   memset(buf, 0, sizeof(buf));
   memcpy(buf + 8, dst, 16);
@@ -160,5 +171,5 @@ int main(int argc, char *argv[]) {
     while (thc_pcap_check(p, (char *) dump_node_reply, NULL) > 0);
     usleep(100);
   }
-  return 0;
+  return ret;
 }

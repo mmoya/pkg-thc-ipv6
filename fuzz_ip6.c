@@ -135,6 +135,7 @@ unsigned int dwords[] = { 0x00000000, 0x00000001, 0x000000fe, 0x000000ff,
 #define NEVER 2000000000
 #define TEST_MAX (NEVER - 1)
 
+#define DO_NONE      0
 #define DO_PING      1
 #define DO_NEIGHSOL  2
 #define DO_NEIGHADV  3
@@ -151,9 +152,10 @@ int port = -1;
 
 void help(char *prg) {
   printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-x] [-t number | -T number] [-p number] [-IFSDHRJ] [-1|-2|-3|-4|-5|-6|-7|-8|-9|-0 port] interface unicast-or-multicast-address [address-in-data-pkt]\n\n", prg);
+  printf("Syntax: %s [-x] [-t number | -T number] [-p number] [-IFSDHRJ] [-X|-1|-2|-3|-4|-5|-6|-7|-8|-9|-0 port] interface unicast-or-multicast-address [address-in-data-pkt]\n\n", prg);
   printf("Fuzzes an icmp6 packet\n");
   printf("Options:\n");
+  printf(" -X         do not add any ICMP/TCP header (tranport laye)\n");
   printf(" -1         fuzz ICMP6 echo request (default)\n");
   printf(" -2         fuzz ICMP6 neighbor solicitation\n");
   printf(" -3         fuzz ICMP6 neighbor advertisement\n");
@@ -226,7 +228,7 @@ int main(int argc, char *argv[]) {
   if (argc < 3 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "s:0123456789xt:T:p:FSDHRIJan:")) >= 0) {
+  while ((i = getopt(argc, argv, "s:0123456789Xxt:T:p:FSDHRIJan:")) >= 0) {
     switch (i) {
     case 's':
       do_type = DO_TCP;
@@ -263,6 +265,9 @@ int main(int argc, char *argv[]) {
     case '9':
       do_type = DO_MLD2_QUERY;
       wait = 0xff0000;
+      break;
+    case 'X':
+      do_type = DO_NONE;
       break;
     case 't':
       test_start = atoi(optarg);
@@ -323,7 +328,7 @@ int main(int argc, char *argv[]) {
     offset -= do_hdr_size;
     off2 = do_hdr_size;
   }
-  if (do_type != DO_PING && do_type != DO_TCP) {
+  if (do_type != DO_PING && do_type != DO_TCP && do_type != DO_NONE) {
     if ((mcast6 = thc_resolve6(argv[optind + 1])) == NULL) {
       fprintf(stderr, "Error: %s does not resolve to a valid IPv6 address\n", argv[optind + 1]);
       exit(-1);
@@ -363,7 +368,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  if (do_type == DO_PING || do_type == DO_TCP)
+  if (do_type == DO_PING || do_type == DO_TCP || do_type == DO_NONE)
     src6 = thc_get_own_ipv6(interface, dst6, PREFER_GLOBAL);
   else
     src6 = thc_get_own_ipv6(interface, dst6, PREFER_LINK);
@@ -528,6 +533,10 @@ int main(int argc, char *argv[]) {
     if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, test_current, (unsigned char *) &buf, 16, 0) < 0)
       return -1;
     strcat(fuzzbuf, fuzztype_icmp6ping);
+    break;
+    
+  case DO_NONE:
+    // empty
     break;
 
   case DO_NEIGHSOL:
@@ -849,6 +858,9 @@ int main(int argc, char *argv[]) {
         if (fragment)
           memcpy(hdr->pkt + frag_offset + 58, (char *) &test_current, 4);
         switch (do_type) {
+        case DO_NONE:
+          // empty
+          break;
         case DO_PING:
           for (i = 0; i < 4 + 1; i++)
             memcpy(hdr->pkt + offset + 58 + i * 4, (char *) &test_current, 4);
@@ -887,7 +899,7 @@ int main(int argc, char *argv[]) {
         }
 
         // regenerate checksum
-        if (do_type != DO_TCP) {       // maybe for later non-icmp stuff
+        if (do_type != DO_TCP && do_type != DO_NONE) {       // maybe for later non-icmp stuff
           hdr->pkt[offset + 56] = 0;
           hdr->pkt[offset + 57] = 0;
           i = checksum_pseudo_header(hdr->original_src, hdr->final_dst, NXT_ICMP6, &hdr->pkt[offset + 54], hdr->pkt_len - offset - 54);

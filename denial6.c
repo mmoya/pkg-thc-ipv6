@@ -54,8 +54,11 @@ int main(int argc, char *argv[]) {
   }
 
   interface = argv[1];
-  dst6 = thc_resolve6(argv[2]);
-  route6 = thc_resolve6("2a01::");
+  if ((dst6 = thc_resolve6(argv[2])) == NULL) {
+    fprintf(stderr, "Error: invalid target: %s\n", argv[2]);
+    exit(-1);
+  }
+  //route6 = thc_resolve6("2a01::");
   memcpy(ldst6, dst6, 16);
   memset(ldst6 + 2, 0, 6);
   ldst6[0] = 0xfe;
@@ -66,7 +69,10 @@ int main(int argc, char *argv[]) {
   memset(null_buffer, 0, sizeof(null_buffer));
 
   src6 = thc_get_own_ipv6(interface, dst6, PREFER_GLOBAL);
-  lsrc6 = thc_get_own_ipv6(interface, ldst6, PREFER_LINK);
+  if ((lsrc6 = thc_get_own_ipv6(interface, ldst6, PREFER_LINK)) == NULL) {
+    fprintf(stderr, "Error: invalid interface: %s\n", interface);
+    exit(-1);
+  }
   srcmac = thc_get_own_mac(interface);
   if (rawmode == 0) {
     if ((dstmac = thc_get_mac(interface, src6, dst6)) == NULL) {

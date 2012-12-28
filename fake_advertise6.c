@@ -74,6 +74,8 @@ int main(int argc, char *argv[]) {
   if (argc - optind >= 4 && argv[optind + 3] != NULL)
     sscanf(argv[optind + 3], "%x:%x:%x:%x:%x:%x", (unsigned int *) &srcmac[0], (unsigned int *) &srcmac[1], (unsigned int *) &srcmac[2], (unsigned int *) &srcmac[3],
            (unsigned int *) &srcmac[4], (unsigned int *) &srcmac[5]);
+  else
+     mac = thc_get_own_mac(interface);
   if (argc - optind >= 5 && argv[optind + 4] != NULL)
     src6 = thc_resolve6(argv[optind + 4]);
   else
