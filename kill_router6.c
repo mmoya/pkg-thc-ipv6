@@ -27,7 +27,7 @@ void help(char *prg) {
 }
 
 void send_ra_kill(u_char *foo, const struct pcap_pkthdr *header, const unsigned char *data) {
-  unsigned char *pkt = NULL, *src = (unsigned char *) data + 14 + 8, *srcmac = (unsigned char *) data + 6, *ipv6hdr = (unsigned char *) (data + 14);
+  unsigned char *pkt = NULL, *src = (unsigned char *) data + 14 + 8, *srcmac = (unsigned char *) data + 6, *ipv6hdr = (unsigned char *) (data + 14), *target;
   int pkt_len = 0, cnt, i, len = header->caplen - 14, offset = 14;
   
   if (do_hdr_size) {
@@ -72,6 +72,9 @@ void send_ra_kill(u_char *foo, const struct pcap_pkthdr *header, const unsigned 
     if (thc_generate_and_send_pkt(frint, srcmac, NULL, pkt, &pkt_len) < 0)
       return;
   }
+  target = thc_ipv62notation(src);
+  printf("Sent RA kill packet for %s\n", target);
+  free(target);
   pkt = thc_destroy_packet(pkt);
 }
 
@@ -192,6 +195,7 @@ int main(int argc, char *argv[]) {
         thc_send_pkt(interface, pkt, &pkt_len);
       }
       sleep(3);
+      printf("RA kill packet to %s sent.\n", argv[optind + 1]); 
     }
     usleep(60);
   }

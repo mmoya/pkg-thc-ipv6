@@ -7,18 +7,41 @@ thc-ipv6 toolkit development. If this matches *you* send me an
 email to vh (at) thc (dot) org , with "thc-ipv6 antispam" in the
 subject line.
 
+v2.1 - PUBLIC
+ * added new tool: dnssecwalk - performs NSEC walking including IPv6+IPv4 resolving
+ * added new tool: firewall6 - various TCP/UDP ACL bypass test cases
+ * added new tool: fake_pim6 - send fake hello and join/prune pim messages
+ * added new tool: ndpexhaust26 - very performant ndp exhauster based on 
+   ICMP error toobig messages but can send many types of packets
+ * alive6: ranges are now supported in the input file too
+ * parasite6: enhancements to make it way more effective
+ * fake_router26: added overlap RA guard evasion type (-E o, -E O)
+ * dos-new-ip6: fix that only DAD replies are sent, not full NDP spoofing :-) (thanks to Johannes Weber for reporting)
+ * flood_router26: Added local LAN privacy extension prevention attack by George Kargiotakis
+ * randicmp6:
+    - added function which dumps icmp answers received
+    - added funtionality to send a specific type (and also code)
+ * dnsdict6: added SRV result address resolving
+ * trace6: fix for routers which add padding to the packets
+ * fuzz_ip6: added -X option for not sending a transport layer
+ * inject_alive6: added -a option to allow selective active alive sending
+ * fake_advertise6: when no srcmac was specified, it was sent as all zeroes
+   instead of the real mac (thanks to Jannes Weber for reporting)
+ * fixed various injection issues (mostly too large packets for MTU on interface)
+ * thc-ipv6-lib: added function thc_send_as_overlapping_{first,last}_fragment6
+ * Added GPL exception clause to license to allow linking to OpenSSL - debian people need this
+ * Makefile: added patch from gentoo maintainers
+
 
 v2.0 - PUBLIC
- * made tool alive26 public and renamed it to alive6, it's a complete rewrite
-	=> common address scanning with -D
-	=> SLAAC address range scanning with -M
-	=> range scanning  e.g. alive6 eth0 2003:1:2:0-f::0-2
-	=> more scanning options for TCP-SYN, TCP-ACK, UDP, ICMP Echo etc.
- * made tool flood_router26 public
-	=> even faster DOS for all Windows platforms
-	=> new DOS type also attacks current *BSD platforms
- * made feature 6to4, VLAN-Q/801.1q and PPPoE injection features public
-	=> see the file HOWTO-INJECT for details
+ * Added VLAN-Q, PPPoE and 6in4 injection support!
+   See the file HOWTO-INJECT for details
+ * added new tool: inject_alive6 - keeps a PPPoE/6in4 tunnel alive if you
+   disconnect the client tunnel endpoint
+ * alive6:
+     - added support for replies with fragmentation header
+     - -s/-a/-u options would send also bad dst hdr packets, fixed
+     - having a '-' in the dns name was not working
  * trace6:
      - added -b option for stealthy tracerouting
      - fixed -a option reply packet analysis
@@ -40,6 +63,10 @@ v2.0 - PUBLIC
      - more intelligent source address selection
      - fixed crash in toobig function
      - better support of broken fragmentation implementations
+     - added thc_add_pim() function and overall PIM packet creation
+ * OpenSSL is now optional, if not present, comment out HAVE_SSL in the Makefile
+ * added trace62list.sh and create_network_map.sh to create network topology
+   map images from trace6 output files
 
 
 v1.9 - PUBLIC
@@ -49,8 +76,15 @@ v1.9 - PUBLIC
  * added new tool: inverse_lookup6 which gets the IPv6 addresses of a mac address
  * added new tool: fake_solicitate6 which lets you fake neighbor solicate packets
  * added new tool: address6 converts between ipv6 <=> ipv4 and mac addresses
+ * added new tool: flood_router26, more effective by many prefix & route
+   entries in each packet
  * added new tool: passive_discovery6 which detects all sending systems
      and includes DAD detection
+ * alive6:
+     - new -I srcip6 option to allow choosing the source IPv6 address to use
+     - fixed a bug in alive6 for hop-by-hop option
+     - expanded waiting time for link local scans
+     - now returns 0 when hosts were found alive, 1 when not (for alive scripting)
  * parasite6:
      - fixed a crash when -F and -R were used together
      - parasite6 now terminates as it should, also ending childrens when using -l
@@ -81,7 +115,7 @@ v1.9 - PUBLIC
  * toobig6: fixed crash when mtu size specified was < 47
  * send errors dont result in program exits for flood_*, fuzz_ip6 and
    ndpexhaust6 tools anymore
- * thc-ipv6-lib
+ * thc-ipv6-lib:
      - changed the thc_pcap_function to
        * have a an addition parameter, promisc (before it was not promiscous)
        * reduce CPU load, which affects detect-new-ip6, dos-new-ip6 and parasite6
@@ -90,7 +124,7 @@ v1.9 - PUBLIC
 
 
 v1.8 - PUBLIC
- * included all tools except alive26
+ * included all tools except alive6
 
 
 v1.7 - PRIVATE
@@ -102,7 +136,7 @@ v1.7 - PRIVATE
      - added -R option to also inject the reverse route
      - added one more ND Security bypass (-D)
  * flood_router6: one more RA guard bypass (-D)
- * alive26:
+ * alive6:
      - important fix for hopbyhop/dst header packet types (ff02::1)!
      - expanded dictionary by results from the ipv6 world day scanning
  * dnsdict6:
@@ -150,7 +184,7 @@ v1.5 - PRIVATE
      - added tunnel detection and identification mode (-t)
      - only up to the 13th hop was reported, fixed
      - added patch by Phillipe Langlois for -s sourceipv6 option
- * alive26:
+ * alive6:
      - print original dst ports for packet replies
      - print original dst ipv6 for icmp errors
      - if -p was specified, sending dst opt error pkt was not disabled

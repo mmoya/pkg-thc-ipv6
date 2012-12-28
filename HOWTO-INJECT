@@ -68,6 +68,23 @@ with this information you can set up the environment, e.g.:
   export THC_IPV6_6IN4=01:01:01:01:01:01,02:02:02:02:02:02,1.1.1.1,2.2.2.2
 
 
+KEEPING THE SESSION ALIVE
+=========================
+
+In case you have to disconnect the client tunnel endpoint to perform your
+tests, usually this will terminate the tunnel after some time as the server
+side often sends keep-alive packets.
+
+There is a tool in the package you can run to answer these keep-alive
+packets called inject_alive. Just run it with the proper environment
+variable and the interface:
+
+  inject_alive eth0
+
+If you tunnel type is PPPoE, it will even warn if the PPPoE session ID seen
+is different to the one you specified in the environment (and uses the one
+seen on the wire).
+
 
 RUNNING THE TOOLS
 =================
@@ -96,7 +113,7 @@ them work if global addresses (non-link-local addresses) are used.
 e.g. when the source IPv6 to use is 2003::1 and the target is
 ipv6.google.com =>
   thcping6 eth0 2003::1 ipv6.google.com
-  alive6 -I 2003::1 eth0 ipv6.google.com
+  alive26 -I 2003::1 eth0 ipv6.google.com
   trace6 -s 2003::1 eth0 ipv6.google.com
 But of course it is easier to just configure that as you only global
 IPv6 addresses so that everything works, e.g.

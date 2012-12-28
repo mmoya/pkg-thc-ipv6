@@ -90,6 +90,7 @@ unsigned short int dict[] = { 0, 0, 0, 0, /*to */ 0, 0, 0, 0,
   0, 0, 2, 0x80, /*to */ 0, 0, 9, 0x80,
   0, 0, 2, 0x500, /*to */ 0, 0, 9, 0x500,
   0, 0, 2, 6, /*to */ 0, 0, 9, 9,
+  0, 0, 0xa, 0, /*to */ 0, 0, 0xf, 2,
   0, 0, 0x80, 6, /*to */ 0, 0, 0x80, 0x1f,
   0, 0, 0x200, 0, /*to */ 0, 0, 0x200, 3,
   0, 0, 0x389, 0, /*to */ 0, 0, 0x389, 3,
@@ -100,13 +101,13 @@ unsigned short int dict[] = { 0, 0, 0, 0, /*to */ 0, 0, 0, 0,
   0, 0, 0x6666, 0, /*to */ 0, 0, 0x6669, 2,
   0, 0, 0x8080, 0, /*to */ 0, 0, 0x8080, 3,
   0, 0, 0xdead, 0xbeef, /*to */ 0, 0, 0xdead, 0xbeef,
-  0, 1, 0, 0, /*to */ 0, 3, 3, 3,
-  1, 0, 0, 0, /*to */ 3, 3, 3, 3,
-  1, 0, 0, 4, /*to */ 1, 0, 0, 0xf,
-  2, 0, 1, 0, /*to */ 2, 0, 1, 3,
-  2, 0, 0, 4, /*to */ 2, 0, 0, 0xd,
-  1, 2, 3, 4, /*to */ 1, 2, 3, 4,
-  4, 0, 0, 1, /*to */ 0xff, 0, 0, 2,
+//  0, 1, 0, 0, /*to */ 0, 3, 3, 3,
+  0, 0, 0, 0, /*to */ 4, 4, 4, 4,  // some doubles here
+  1, 0, 0, 5, /*to */ 1, 0, 0, 0xf,
+//  2, 0, 1, 0, /*to */ 2, 0, 1, 3,
+  2, 0, 0, 5, /*to */ 2, 0, 0, 0xd,
+//  1, 2, 3, 4, /*to */ 1, 2, 3, 4,
+  5, 0, 0, 1, /*to */ 0xff, 0, 0, 2,
   0xffff, 0x00ff, 0xfe00, 0xfffe, /*to */ 0xffff, 0x00ff, 0xfe00, 0xffff,
   0xffff, 0xffff, 0xffff, 0xfffe, /*to */ 0xffff, 0xffff, 0xffff, 0xfffe,
   0xffff, 0xffff, 0xffff, 0xffff, /*to */ 0xffff, 0xffff, 0xffff, 0xffff
@@ -366,13 +367,14 @@ void get_ports_from_cmdline(int ports[], char *list, char param) {
 }
 
 int main(int argc, char *argv[]) {
+  unsigned char string[64]; // = "ip6 and dst ";
   unsigned char *pkt = NULL, *router6 = NULL, *cur_dst, *p2, *p3, *smac, buf2[6];
-  unsigned char *multicast6 = NULL, *src6 = NULL, *mac = NULL, *rmac = NULL, *routers[2], string[64] = "ip6 and dst ";
+  unsigned char *multicast6 = NULL, *src6 = NULL, *mac = NULL, *rmac = NULL, *routers[2];
   int pkt_len = 0, prefer = PREFER_GLOBAL, fromto = 0, dictptr = 0, offset = 14;
   int enumerate_mac = 0, enumerate_dhcp = 0, i, j, k, list = 0, curr = 0, cur_enum = 0;
   int slow = 0, no_vendid = 0, no_nets = 0, local = -1, no_send = 1, no_send_local = 1, no_send_remote = 2, nos = 0;
-  char *interface = NULL, *input = NULL, *output = NULL, line[128], *ptr, *ptr2, *ptr3, do_router = 0, ok;
-  unsigned char bh, bm, bl, restart, use_dmac = 0;
+  char *interface = NULL, *input = NULL, *output = NULL, line[128], line2[128], *ptr, *ptr2, *ptr3, do_router = 0, ok;
+  unsigned char bh, bm, bl, restart, use_dmac = 0, dump_all = 0;
   unsigned short int ip1, ip2, ip3, ip4, cip1, cip2, cip3, cip4, cip5, cip6, cip7, cip8;
   unsigned short int fip1, fip2, fip3, fip4, fip5, fip6, fip7, fip8, tip1, tip2, tip3, tip4, tip5, tip6, tip7, tip8;
   unsigned char vendid[MAX_VENDID][11], nets[MAX_NETS][8], orig_dst[16], dmac[27] = { 0, 0, 0, 0, 0, 0, 0 };
@@ -396,7 +398,7 @@ int main(int argc, char *argv[]) {
     help(argv[0]);
 
   j = 0;
-  while ((i = getopt(argc, argv, "W:SFdrlMDn:i:o:pvs:a:u:e:VZ:I:")) >= 0) {
+  while ((i = getopt(argc, argv, "W:SFdrlMDn:i:o:pvs:a:u:e:VZ:I:X")) >= 0) {
     switch (i) {
     case 'Z':
       use_dmac = 1;
@@ -496,6 +498,9 @@ int main(int argc, char *argv[]) {
         }
       }
       break;
+    case 'X':
+      dump_all = 1;
+      break;
     default:
       fprintf(stderr, "Error: unknown option -%c\n", i);
       exit(-1);
@@ -571,7 +576,22 @@ int main(int argc, char *argv[]) {
       exit(-1);
     }
   }
-  strcat(string, thc_ipv62notation(src6));
+  //strcat(string, thc_ipv62notation(src6));
+  sprintf(string, "dst %s", thc_ipv62notation(src6));
+  if (dump_all == 0) {
+    if (synports[0] != -1 || udpports[0] != -1 || ackports[0] != -1) {
+      strcat(string, " and ( icmp6 or ");
+      if (udpports[0] != -1)
+        strcat(string, "udp ");
+      if (udpports[0] != -1 && (synports[0] != -1 || ackports[0] != -1))
+         strcat(string, "or ");
+      if (synports[0] != -1 || ackports[0] != -1)
+        strcat(string, "tcp ");
+      strcat(string, ")");
+    } else
+      strcat(string, " and icmp6");
+  }
+  
   if (multicast6 != NULL && (enumerate_mac || enumerate_dhcp) && input == NULL && multicast6[0] == 0xff) {
     fprintf(stderr, "Warning: -M/-D options make no sense for multicast addresses and are ignored for these\n");
     enumerate_dhcp = enumerate_mac = 0;
@@ -813,6 +833,11 @@ int main(int argc, char *argv[]) {
         if (strlen(ptr) > 80) {
           ok = 0;
         } else {
+          if (curr != 0) {
+            memcpy(line2, line, 80);
+            ptr = line2;
+            line2[80] = 0;
+          }
           memset(line, 0, 80);
           i = j = k = 0;
           while (i == 0) {
@@ -826,6 +851,7 @@ int main(int argc, char *argv[]) {
           }
           if (verbose > 1)
             printf("Resolving %s ...\n", line);
+//printf("ptr: %s, line %s, cur_dst %s, multicast6 %s\n", ptr, line, cur_dst, multicast6);
           if ((cur_dst = thc_resolve6(line)) == NULL) {
             ok = 0;
           } else {

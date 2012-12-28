@@ -5,7 +5,7 @@
 
 #ifndef _HAVE_SSL
 int main() {
-  fprintf(stderr, "Error: thc-ipv6 was compiled with openssl support, covert_send6 disabled.\n");
+  fprintf(stderr, "Error: thc-ipv6 was compiled without openssl support, covert_send6 disabled.\n");
   return -1;
 }
 #else

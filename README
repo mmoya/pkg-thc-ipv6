@@ -19,7 +19,7 @@ quickly wrote my own library.
 LIMITATIONS
 ===========
 This code currently only runs on:
- - Linux 2.6.x (because of /proc usage)
+ - Linux 2.6.x or newer (because of /proc usage)
  - Ethernet
 But this means for all linux guys that it will work for 98% of your use cases.
 Patches are welcome! (add "antispam" in the subject line to get through my
@@ -63,6 +63,8 @@ tools:
  - sendpees6: a tool by willdamn@gmail.com, which generates a neighbor
    solicitation requests with a lot of CGAs (crypto stuff ;-) to keep the
    CPU busy. nice.
+and about 25 more tools for you to discover :-)
+
 Just run the tools without options and they will give you help and show the
 command line options.
 

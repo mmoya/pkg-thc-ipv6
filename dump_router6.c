@@ -26,7 +26,7 @@ void help(char *prg) {
 }
 
 void dump_ra_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned char *data) {
-  unsigned char *ipv6hdr = (unsigned char *) (data + 14), *ptr;
+  unsigned char *ipv6hdr = (unsigned char *) (data + 14), *ptr, *ptr2;
   int i, k, len = header->caplen - 14;
 
   if (do_hdr_size > 0) {
@@ -57,10 +57,10 @@ void dump_ra_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
     printf("high\n");
     break;
   case 16:
-    printf("low\n");
+    printf("reserved value\n");
     break;
   case 24:
-    printf("reserved value\n");
+    printf("low\n");
     break;
   }
   printf("  TTL: %d\n", ipv6hdr[44]);
@@ -117,7 +117,7 @@ void dump_ra_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
         else
           printf(" NOT-autoconfig");
         if ((ptr[3] & 63) > 0)
-          printf(" RESERVED-BITS-SET-%d\n", ptr[3] & 63);
+          printf(" RESERVED-BITS-SET-%d", ptr[3] & 63);
         printf("\n");
       }
       break;
@@ -140,13 +140,22 @@ void dump_ra_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
           printf("high\n");
           break;
         case 16:
-          printf("low\n");
+          printf("reserved value\n");
           break;
         case 24:
-          printf("reserved value\n");
+          printf("low\n");
           break;
         }
       }
+      break;
+    case 31:
+      ptr2 = ptr + 9;
+      while (*ptr2 != 0) {
+        if (*ptr2 < 32 && *ptr2 > 0)
+          *ptr2 = '.';
+        ptr2++;
+      }
+      printf("    DNS Searchlist: %s (Lifetime: %u)\n", ptr + 9, (ptr[4] << 24) + (ptr[5] << 16) + (ptr[6] << 8) + ptr[7]);
       break;
     case 25:
       if (ptr[1] != 3)

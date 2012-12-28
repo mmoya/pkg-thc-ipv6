@@ -14,7 +14,7 @@
   #include <openssl/rsa.h>
 #endif
 
-#define VERSION 	"v2.0"
+#define VERSION 	"v2.1"
 #define AUTHOR 		"van Hauser / THC <vh@thc.org>"
 #define RESOURCE	"www.thc.org"
 
@@ -96,6 +96,8 @@ extern int thc_paramprob6(char *interface, unsigned char *src, unsigned char *sr
 extern int thc_unreach6(char *interface, unsigned char *src, unsigned char *srcmac, unsigned char *dstmac, unsigned char code, unsigned char *pkt, int pkt_len);
 extern int thc_redir6(char *interface, unsigned char *src, unsigned char *srcmac, unsigned char *dstmac, unsigned char *newrouter, unsigned char *newroutermac, unsigned char *pkt, int pkt_len);
 extern int thc_send_as_fragment6(char *interface, unsigned char *src, unsigned char *dst, unsigned char type, unsigned char *data, int data_len, int frag_len);
+extern int thc_send_as_overlapping_first_fragment6(char *interface, unsigned char *src, unsigned char *dst, unsigned char type, unsigned char *data, int data_len, int frag_len, int overlap_spoof_type);
+extern int thc_send_as_overlapping_last_fragment6(char *interface, unsigned char *src, unsigned char *dst, unsigned char type, unsigned char *data, int data_len, int frag_len, int overlap_spoof_type);
 extern unsigned char *thc_create_ipv6(char *interface, int prefer, int *pkt_len, unsigned char *src, unsigned char *dst, int ttl, int length, int label, int class, int version);
 extern int thc_add_hdr_misc(unsigned char *pkt, int *pkt_len, unsigned char type, int len, unsigned char *buf, int buflen);
 extern int thc_add_hdr_route(unsigned char *pkt, int *pkt_len, unsigned char **routers, unsigned char routerptr);

