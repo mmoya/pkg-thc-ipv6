@@ -1,3 +1,9 @@
+thc-ipv6 (2.1-0.1) unstable; urgency=low
+
+  * New upstream release (NMU).
+
+ -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Fri, 22 Mar 2012 11:19:55 +0000
+
 thc-ipv6 (2.0-1) unstable; urgency=low
 
   * New upstream release (closes: #690520).

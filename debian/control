@@ -2,7 +2,7 @@ Source: thc-ipv6
 Section: net
 Priority: optional
 Maintainer: Maykel Moya <mmoya@mmoya.org>
-Build-Depends: debhelper (>= 5), dpkg-dev (>= 1.16.1~), libpcap0.8-dev
+Build-Depends: debhelper (>= 7), dpkg-dev (>= 1.16.1~), libpcap0.8-dev
 Standards-Version: 3.9.3
 
 Package: attack-toolkit6

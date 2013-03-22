@@ -51,3 +51,7 @@ usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/smurf6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/thcping6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/toobig6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/trace6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/fake_pim6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/firewall6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/inject_alive6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/ndpexhaust26.8.gz
