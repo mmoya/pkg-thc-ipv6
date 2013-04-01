@@ -9,8 +9,8 @@ Package: attack-toolkit6
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Homepage: http://www.thc.org/thc-ipv6/
-Description: The Hacker Choice's IPv6 Attack Toolkit
- A tool set to attack protocol weaknesses of IPv6 and ICMP6.
+Description: IPv6 The Hacker Choice's Attack Toolkit
+ Tool set to attack protocol weaknesses of IPv6 and ICMP6.
  .
  Some of the tools included:
  .
