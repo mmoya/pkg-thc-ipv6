@@ -23,6 +23,15 @@ Subject: Fix Makefile
  MANPREFIX=${PREFIX}/share/man
  
  all:	$(LIBS) $(PROGRAMS) dnssecwalk dnsdict6 thcping6
+@@ -20,7 +20,7 @@
+ 	$(CC) $(CFLAGS) -o $@ $^
+ 
+ dnsdict6:	dnsdict6.c
+-	$(CC) $(CFLAGS) -o $@ $^ -lpthread -lresolv
++	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(CPPFLAGS) -lpthread -lresolv
+ 
+ thcping6:	thcping6.c $(LIBS)
+ 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lrt
 @@ -33,9 +33,12 @@
  
  install: all strip
