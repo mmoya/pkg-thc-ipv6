@@ -1,6 +1,6 @@
 thc-ipv6 (2.1-0.2) unstable; urgency=low
 
-  * Added prefix 'atk6' to all binaries.
+  * Added prefix 'atk6' to all binaries (NMU).
 
  -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Mon, 8 Apr 2013 14:54:55 +0100
 
