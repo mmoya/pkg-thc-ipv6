@@ -23,12 +23,12 @@ extern int do_hdr_off;
 int sports[] = { 20, 21, 22, 25, 53, 80, 111, 123, 179, 443, 8080, -1 } ;
 int sports2[] = { 20, 53, 67, 68, 69, 111, 123, 161, 162, 2049, -1 } ;
 
-int matched = 0, port = -1, udp = 0, sport = 21000, cport, count = 0, poffset, poffset2, ptype, only = 0;
+int matched = 0, port = -1, udp = 0, sport = 21000, cport, count = 0, poffset, poffset2, ptype, only = 0, pingtest = 0;
 unsigned char *dst, *psrc, is_srcport = 0;
 pcap_t *p;
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-u] interface destination port [test-case-no]\n\n", prg);
   printf("Performs various ACL bypass attempts to check implementations.\n");
   printf("Defaults to TCP ports, option -u switches to UDP.\n");
@@ -140,7 +140,11 @@ void check_packet(u_char *foo, const struct pcap_pkthdr *header, const unsigned 
       }
       printf(" unreachable received\n");
     }
-  }
+  } else
+    if (ptr[nxt] == NXT_ICMP6 && ptr[40 + offset] == ICMP6_ECHOREPLY && pingtest) {
+      matched = 1;
+      printf("ICMPv6 Echo Reply");
+    }
 }
 
 void check_for_reply() {
@@ -887,10 +891,10 @@ int main(int argc, char *argv[]) {
     if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
-      if (thc_add_tcp(pkt, &pkt_len, 0x0301, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
         return -1;
     } else {
-      if (thc_add_udp(pkt, &pkt_len, 0x0301, port, 0, buf, 2500) == -1)
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, buf, 2500) == -1)
         return -1;
     }
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
@@ -934,19 +938,18 @@ int main(int argc, char *argv[]) {
     curr++;
   }
   
-  
   if (only == ++count || only == 0) {
-    printf("Test %2d: frag type first\t\t", count);
+    printf("Test %2d: frag type first (2nd)\t\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
 
     if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
-      if (thc_add_tcp(pkt, &pkt_len, 0x0302, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
         return -1;
     } else {
-      if (thc_add_udp(pkt, &pkt_len, 0x0302, port, 0, buf, 2500) == -1)
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, buf, 2500) == -1)
         return -1;
     }
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
@@ -956,9 +959,9 @@ int main(int argc, char *argv[]) {
     
     if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
-    if (thc_add_hdr_fragment(pkt2, &pkt_len2, 0, 1, sport + count) == -1)
+    if (thc_add_hdr_fragment(pkt2, &pkt_len2, 1232 / 8, 1, sport + count) == -1)
       return -1;
-    if (thc_add_data6(pkt2, &pkt_len2, NXT_TCP, hdr->pkt + 40 + offset, 1232) == -1)
+    if (thc_add_data6(pkt2, &pkt_len2, NXT_ICMP6, hdr->pkt + 1232 + 40 + offset, 1232) == -1)
       return -1;
     if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt2, &pkt_len2) == -1)
       return -1;
@@ -966,9 +969,9 @@ int main(int argc, char *argv[]) {
 
     if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
-    if (thc_add_hdr_fragment(pkt2, &pkt_len2, 1232 / 8, 1, sport + count) == -1)
+    if (thc_add_hdr_fragment(pkt2, &pkt_len2, 0, 1, sport + count) == -1)
       return -1;
-    if (thc_add_data6(pkt2, &pkt_len2, NXT_ICMP6, hdr->pkt + 1232 + 40 + offset, 1232) == -1)
+    if (thc_add_data6(pkt2, &pkt_len2, NXT_TCP, hdr->pkt + 40 + offset, 1232) == -1)
       return -1;
     if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt2, &pkt_len2) == -1)
       return -1;
@@ -991,17 +994,17 @@ int main(int argc, char *argv[]) {
   }
   
   if (only == ++count || only == 0) {
-    printf("Test %2d: frag type first #2\t\t", count);
+    printf("Test %2d: frag type first #2 (overlap)\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
 
     if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
-      if (thc_add_tcp(pkt, &pkt_len, 0x0302, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
         return -1;
     } else {
-      if (thc_add_udp(pkt, &pkt_len, 0x0302, port, 0, buf, 2500) == -1)
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, buf, 2500) == -1)
         return -1;
     }
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
@@ -1019,6 +1022,76 @@ int main(int argc, char *argv[]) {
   }
   
   if (only == ++count || only == 0) {
+    printf("Test %2d: frag type first #3 (resend#2)\t", count);
+
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 1, sport + count) < 0)
+      return -1;
+    if (thc_add_icmp6(pkt, &pkt_len, ICMP6_ECHOREQUEST, 0, count, (unsigned char *) &buf, 12, 0) < 0)
+      return -1;
+    if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+    pkt = thc_destroy_packet(pkt);
+
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) < 0)
+      return -1;
+    if (udp == 0) {
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, NULL, 0) == -1)
+        return -1;
+    } else {
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, NULL, 0) == -1)
+        return -1;
+    }
+    while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
+    if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+    pkt = thc_destroy_packet(pkt);
+
+    check_for_reply();
+
+    curr++;
+  }
+  
+  if (only == ++count || only == 0) {
+    printf("Test %2d: frag type first #4 (resend#2L)\t", count);
+    poffset = 0;
+    ptype = NXT_FRAG;
+
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 1, sport + count) < 0)
+      return -1;
+    if (thc_add_icmp6(pkt, &pkt_len, ICMP6_ECHOREQUEST, 0, count, (unsigned char *) &buf, 0, 0) < 0)
+      return -1;
+    if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+    pkt = thc_destroy_packet(pkt);
+
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) < 0)
+      return -1;
+    if (udp == 0) {
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, NULL, 0) == -1)
+        return -1;
+    } else {
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, NULL, 0) == -1)
+        return -1;
+    }
+    while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
+    if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+    pkt = thc_destroy_packet(pkt);
+
+    check_for_reply();
+
+    curr++;
+  }
+  
+  if (only == ++count || only == 0) {
     printf("Test %2d: frag type middle+last\t\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
@@ -1026,10 +1099,10 @@ int main(int argc, char *argv[]) {
     if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
-      if (thc_add_tcp(pkt, &pkt_len, 0x0303, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
         return -1;
     } else {
-      if (thc_add_udp(pkt, &pkt_len, 0x0303, port, 0, buf, 2500) == -1)
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, buf, 2500) == -1)
         return -1;
     }
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
@@ -1074,6 +1147,61 @@ int main(int argc, char *argv[]) {
   }
   
   if (only == ++count || only == 0) {
+    printf("Test %2d: frag type middle(first)+last\t", count);
+    poffset = 0;
+    ptype = NXT_FRAG;
+
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (udp == 0) {
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
+        return -1;
+    } else {
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, buf, 2500) == -1)
+        return -1;
+    }
+    if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+    hdr = (thc_ipv6_hdr *) pkt;
+    while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
+    
+    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_hdr_fragment(pkt2, &pkt_len2, 1232 / 8, 1, sport + count) == -1)
+      return -1;
+    if (thc_add_data6(pkt2, &pkt_len2, NXT_TCP, hdr->pkt + 1232 + 40 + offset, 1232) == -1)
+      return -1;
+    if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt2, &pkt_len2) == -1)
+      return -1;
+    pkt2 = thc_destroy_packet(pkt2);
+
+    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_hdr_fragment(pkt2, &pkt_len2, 0, 1, sport + count) == -1)
+      return -1;
+    if (thc_add_data6(pkt2, &pkt_len2, NXT_ICMP6, hdr->pkt + 40 + offset, 1232) == -1)
+      return -1;
+    if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt2, &pkt_len2) == -1)
+      return -1;
+    pkt2 = thc_destroy_packet(pkt2);
+
+    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_hdr_fragment(pkt2, &pkt_len2, 2464 / 8, 0, sport + count) == -1)
+      return -1;
+    if (thc_add_data6(pkt2, &pkt_len2, NXT_TCP, hdr->pkt + 2464 + 40 + offset, hdr->pkt_len - 2464 - 40 - do_hdr_size) == -1)
+      return -1;
+    if (thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt2, &pkt_len2) == -1)
+      return -1;
+    pkt2 = thc_destroy_packet(pkt2);
+
+    pkt = thc_destroy_packet(pkt);
+    check_for_reply();
+
+    curr++;
+  }
+  
+  if (only == ++count || only == 0) {
     printf("Test %2d: frag type last\t\t\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
@@ -1081,10 +1209,10 @@ int main(int argc, char *argv[]) {
     if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
-      if (thc_add_tcp(pkt, &pkt_len, 0x0304, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
         return -1;
     } else {
-      if (thc_add_udp(pkt, &pkt_len, 0x0304, port, 0, buf, 2500) == -1)
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, buf, 2500) == -1)
         return -1;
     }
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
@@ -1136,10 +1264,10 @@ int main(int argc, char *argv[]) {
     if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
-      if (thc_add_tcp(pkt, &pkt_len, 0x0302, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
         return -1;
     } else {
-      if (thc_add_udp(pkt, &pkt_len, 0x0302, port, 0, buf, 2500) == -1)
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, buf, 2500) == -1)
         return -1;
     }
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
@@ -1231,7 +1359,9 @@ int main(int argc, char *argv[]) {
 
     pkt = thc_destroy_packet(pkt);
     pkt3 = thc_destroy_packet(pkt3);
+    pingtest = 1;
     check_for_reply();
+    pingtest = 0;
 
     curr++;
   }
@@ -1311,7 +1441,9 @@ int main(int argc, char *argv[]) {
 
     pkt = thc_destroy_packet(pkt);
     pkt3 = thc_destroy_packet(pkt3);
+    pingtest = 1;
     check_for_reply();
+    pingtest = 0;
 
     curr++;
   }
@@ -1403,7 +1535,149 @@ int main(int argc, char *argv[]) {
 
     pkt = thc_destroy_packet(pkt);
     pkt3 = thc_destroy_packet(pkt3);
+    pingtest = 1;
     check_for_reply();
+    pingtest = 0;
+
+    curr++;
+  }
+  
+  if (only == ++count || only == 0) {
+    printf("Test %2d: Bad TLV handling\t\t", count);
+    memset(buf, 0, sizeof(buf));
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf, 6) == -1)
+      return -1;
+    buf[0] = 1; // T
+    buf[1] = 12; // L
+    if (thc_add_hdr_dst(pkt, &pkt_len, buf, 6) == -1)
+      return -1;
+    
+    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    memset(buf, 0, sizeof(buf));
+    if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 6) == -1)
+      return -1;
+    buf[0] = 1; // T
+    buf[1] = 4; // L
+    if (thc_add_hdr_dst(pkt2, &pkt_len2, buf, 6) == -1)
+      return -1;
+    if (thc_add_tcp(pkt2, &pkt_len2, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, NULL, 0) == -1)
+      return -1;
+    if (thc_generate_pkt(interface, srcmac, dstmac, pkt2, &pkt_len2) == -1)
+      return -1;
+
+    hdr = (thc_ipv6_hdr *) pkt2;    
+    if (thc_add_icmp6(pkt, &pkt_len, ICMP6_ECHOREQUEST, 0, count, hdr->pkt + hdr->pkt_len - 20, 20, 0) == -1)
+      return -1;
+    if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+
+    while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
+    while (thc_send_pkt(interface, pkt, &pkt_len) == -1)
+      usleep(1);
+    while (thc_send_pkt(interface, pkt, &pkt_len) == -1)
+      usleep(1);
+    pingtest = 1;
+    check_for_reply();
+    pingtest = 0;
+    pkt2 = thc_destroy_packet(pkt2);
+    pkt = thc_destroy_packet(pkt);
+    memset(buf, 0, sizeof(buf));
+
+    curr++;
+  }
+
+  if (only == ++count || only == 0) {
+    printf("Test %2d: Bad TLV handling #2\t\t", count);
+    memset(buf, 0, sizeof(buf));
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    buf[0] = 1; // T
+    buf[1] = 12; // L
+    if (thc_add_hdr_dst(pkt, &pkt_len, buf, 6) == -1)
+      return -1;
+    buf[0] = 1; // T
+    buf[1] = 12; // L
+    buf[6] = NXT_TCP; // fake dst hdr
+    buf[7] = 1; // 16 byte length of fake hdr, jumping over 8 byte of icmp hdr
+    buf[8] = 1; // T fake
+    buf[9] = 12; // L fake
+    if (thc_add_hdr_dst(pkt, &pkt_len, buf, 14) == -1)
+      return -1;
+    
+    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_tcp(pkt2, &pkt_len2, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, NULL, 0) == -1)
+      return -1;
+    if (thc_generate_pkt(interface, srcmac, dstmac, pkt2, &pkt_len2) == -1)
+      return -1;
+
+    hdr = (thc_ipv6_hdr *) pkt2;    
+    if (thc_add_icmp6(pkt, &pkt_len, ICMP6_ECHOREQUEST, 0, count, hdr->pkt + hdr->pkt_len - 20, 20, 0) == -1)
+      return -1;
+    if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+
+    while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
+    while (thc_send_pkt(interface, pkt, &pkt_len) == -1)
+      usleep(1);
+    while (thc_send_pkt(interface, pkt, &pkt_len) == -1)
+      usleep(1);
+    pingtest = 1;
+    check_for_reply();
+    pingtest = 0;
+    pkt2 = thc_destroy_packet(pkt2);
+    pkt = thc_destroy_packet(pkt);
+    memset(buf, 0, sizeof(buf));
+
+    curr++;
+  }
+
+  if (only == ++count || only == 0) {
+    printf("Test %2d: Bad TLV handling #2 reverse\t", count);
+    memset(buf, 0, sizeof(buf));
+    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    buf[0] = 1; // T
+    buf[1] = 12; // L
+    if (thc_add_hdr_dst(pkt, &pkt_len, buf, 6) == -1)
+      return -1;
+    buf[0] = 1; // T
+    buf[1] = 12; // L
+    buf[6] = NXT_ICMP6; // fake dst hdr
+    buf[7] = 3; // 32 byte length of fake hdr, jumping over 24 byte of tcp hdr
+    buf[8] = 1; // T fake
+    buf[9] = 28; // L fake
+    if (thc_add_hdr_dst(pkt, &pkt_len, buf, 14) == -1)
+      return -1;
+    
+    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+      return -1;
+    if (thc_add_icmp6(pkt2, &pkt_len2, ICMP6_ECHOREQUEST, 0, count, NULL, 0, 0) == -1)
+      return -1;
+    if (thc_generate_pkt(interface, srcmac, dstmac, pkt2, &pkt_len2) == -1)
+      return -1;
+
+    hdr = (thc_ipv6_hdr *) pkt2;    
+    memset(hdr->pkt + hdr->pkt_len - 12, 0, 4);
+    if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, hdr->pkt + hdr->pkt_len - 12, 12) == -1)
+      return -1;
+    if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+
+    while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
+    while (thc_send_pkt(interface, pkt, &pkt_len) == -1)
+      usleep(1);
+    while (thc_send_pkt(interface, pkt, &pkt_len) == -1)
+      usleep(1);
+    pingtest = 1;
+    check_for_reply();
+    pingtest = 0;
+    pkt2 = thc_destroy_packet(pkt2);
+    pkt = thc_destroy_packet(pkt);
+    memset(buf, 0, sizeof(buf));
 
     curr++;
   }
@@ -1419,10 +1693,8 @@ int main(int argc, char *argv[]) {
         ptype = -1;
         if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
           return -1;
-        if (thc_add_tcp(pkt, &pkt_len, sports[i], port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 1000) == -1)
+        if (thc_add_tcp(pkt, &pkt_len, sports[i], port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 0) == -1)
           return -1;
-//        if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, buf, 1000) == -1)
-//          return -1;
         if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
           return -1;
         while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);

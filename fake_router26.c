@@ -14,13 +14,13 @@
 
 int plife = 99999, rlife = 4096, llife = 2048, reach = 0, trans = 0, dlife = 4096, cnt, to_send = 256, flags = 0, myoff = 14;
 char *frbuf, *frbuf2, *frint, buf3[1232];
-int frbuflen, frbuf2len, do_overlap = 0, do_hop = 0, do_frag = 0, do_dst = 0, type = NXT_ICMP6, prio = 2;
+int frbuflen, frbuf2len, do_overlap = 0, do_hop = 0, do_frag = 0, do_dst = 0, type = NXT_ICMP6, prio = 2, interval = 5;
 unsigned char *frip6, *frmac;
 thc_ipv6_hdr *frhdr = NULL;
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-E type] [-A network/prefix] [-R network/prefix] [-D dns-server] [-s sourceip] [-S sourcemac] [-ardl seconds] [-Tt ms] [-n no] interface\n\n", prg);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("Syntax: %s [-E type] [-A network/prefix] [-R network/prefix] [-D dns-server] [-s sourceip] [-S sourcemac] [-ardl seconds] [-Tt ms] [-n no] [-i interval] interface\n\n", prg);
   printf("Options:\n");
   printf(" -A network/prefix  add autoconfiguration network (up to %d times)\n", MAX_ENTRIES);
   printf(" -a seconds         valid lifetime of prefix -A (defaults to %d)\n", plife);
@@ -45,8 +45,9 @@ void help(char *prg) {
   printf("     O             overlapping fragments for keep-first targets (Win, BSD, Mac)\n");
   printf("     o             overlapping fragments for keep-last targets (Linux, Solaris)\n");
   printf("                    Examples: -E H111, -E D\n");      //, -E O, -E o (the last two are best)\n");
-  printf(" -n number         number of RAs to send (default: unlimited)\n");
   printf(" -m mac-address    if only one machine should receive the RAs (not with -E DoO)\n");
+  printf(" -i interval       time between RA packets (default: %d)\n", interval);
+  printf(" -n number         number of RAs to send (default: unlimited)\n");
   printf("\nAnnounce yourself as a router and try to become the default router.\n");
   printf("If a non-existing link-local or mac address is supplied, this results in a DOS.\n");
 //  printf("Use -r to use raw mode.\n\n");
@@ -112,8 +113,11 @@ int main(int argc, char *argv[]) {
   memset(rbuf, 0, sizeof(rbuf));
   memset(mac, 0, sizeof(mac));
 
-  while ((i = getopt(argc, argv, "r:E:R:M:m:S:s:D:L:A:a:r:d:t:T:p:n:l:F:")) >= 0) {
+  while ((i = getopt(argc, argv, "i:r:E:R:M:m:S:s:D:L:A:a:r:d:t:T:p:n:l:F:")) >= 0) {
     switch (i) {
+    case 'i':
+      interval = atoi(optarg);
+      break;
     case 'm':
       sscanf(optarg, "%x:%x:%x:%x:%x:%x", (unsigned int *) &dmac[0], (unsigned int *) &dmac[1], (unsigned int *) &dmac[2], (unsigned int *) &dmac[3], (unsigned int *) &dmac[4],
              (unsigned int *) &dmac[5]);
@@ -531,7 +535,7 @@ int main(int argc, char *argv[]) {
     while (thc_pcap_check(p, (char *) send_rs_reply, NULL) > 0);
     sent++;
     if (sent != to_send || to_send > 255)
-      sleep(5);
+      sleep(interval);
   }
   return 0; // never reached
 }

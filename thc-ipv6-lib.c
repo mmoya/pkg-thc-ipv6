@@ -1,5 +1,5 @@
 /*
- * (c) 2012 by van Hauser / THC <vh@thc.org>
+ * (c) 2013 by van Hauser / THC <vh@thc.org>
  *
  * THC IPv6 Attack Library
  *
@@ -362,7 +362,7 @@ printf("65535+40: %x\n", calculate_checksum(ptr, 65536 + 40));
 }
 
 unsigned char *thc_resolve6(char *target) {
-  char *ret_addr;
+  char *ret_addr, *ptr2, *ptr = target, tmp[256];
   struct in6_addr glob_in6;
   char *glob_addr = (char *) &glob_in6;
   struct addrinfo glob_hints, *glob_result;
@@ -371,10 +371,22 @@ unsigned char *thc_resolve6(char *target) {
   if (target == NULL)
     return NULL;
 
+  if (index(target, '/') != NULL || *target == '[') {
+    ptr = strncpy(tmp, target, 255);
+    tmp[255] = 0;
+    if ((ptr2 = index(tmp, '/')) != NULL)
+      *ptr2 = 0;
+    if (*ptr == '[') {
+      ptr++;
+      if ((ptr2 = index(tmp, ']')) != NULL)
+        *ptr2 = 0;
+    }
+  }
+
   memset(&glob_hints, 0, sizeof(glob_hints));
   glob_hints.ai_family = AF_INET6;
 
-  if (getaddrinfo(target, NULL, &glob_hints, &glob_result) != 0)
+  if (getaddrinfo(ptr, NULL, &glob_hints, &glob_result) != 0)
     return NULL;
   if (getnameinfo(glob_result->ai_addr, glob_result->ai_addrlen, out, sizeof(out), NULL, 0, NI_NUMERICHOST) != 0)
     return NULL;
@@ -488,6 +500,7 @@ unsigned char *thc_get_own_ipv6(char *interface, unsigned char *dst, int prefer)
 
   if (dst != NULL)
     tmpdst = thc_ipv62string(dst);
+  memset(save, 0, sizeof(save));
 
   while (done < 2 && picky < 2) {
     if ((f = fopen("/proc/net/if_inet6", "r")) == NULL) {
@@ -538,13 +551,23 @@ unsigned char *thc_get_own_ipv6(char *interface, unsigned char *dst, int prefer)
           } 
         }
         // ensure that 2000::/3 and fc00::/7 is selected correctly
-        if (dst != NULL || strncmp(tmpbuf, "fc", 2) == 0 || strncmp(tmpbuf, "fd", 2) == 0) {
-          if ( (dst == NULL && (strncmp(tmpbuf, "fc", 2) == 0 || strncmp(tmpbuf, "fd", 2) == 0))
+        if (done != 2 && dst != NULL) {
+          if (
+               ((strncmp(tmpbuf, "fc", 2) == 0 || strncmp(tmpbuf, "fd", 2) == 0) && (strncmp(tmpdst, "fc", 2) == 0 || strncmp(tmpdst, "fd", 2) == 0))
               ||
-               (dst != NULL && ((strncmp(tmpbuf, "fc", 2) == 0 || strncmp(tmpbuf, "fd", 2) == 0) && (tmpdst[0] == '2' || tmpdst[0] == '3')))
+               ((tmpdst[0] == '2' || tmpdst[0] == '3') && (tmpbuf[0] == '2' || tmpbuf[0] == '3')) ) {
+//printf("SAVE! %s -> %s\n", tmpbuf, tmpdst);
+            memcpy(save + 2, tmpbuf, 32);
+            memset(ipv6, 0, sizeof(ipv6));
+            done = 0;
+          }
+          if ( save[2] == 0
+              &&
+               ( ((strncmp(tmpbuf, "fc", 2) == 0 || strncmp(tmpbuf, "fd", 2) == 0) && (tmpdst[0] == '2' || tmpdst[0] == '3'))
               ||
-               (dst != NULL && ((strncmp(tmpdst, "fc", 2) == 0 || strncmp(tmpdst, "fd", 2) == 0) && (tmpbuf[0] == '2' || tmpbuf[0] == '3'))) ) {
-            memcpy(save, ipv6, sizeof(save));
+                 ((strncmp(tmpdst, "fc", 2) == 0 && strncmp(tmpdst, "fd", 2) == 0) && (tmpbuf[0] == '2' || tmpbuf[0] == '3')) ) ) {
+//printf("RESORT! %c -> %c\n", tmpbuf[1], tmpdst[0]);
+            memcpy(save + 2, tmpbuf, 32);
             memset(ipv6, 0, sizeof(ipv6));
             done = 0;
           }
@@ -553,12 +576,21 @@ unsigned char *thc_get_own_ipv6(char *interface, unsigned char *dst, int prefer)
     }
     fclose(f);
     picky++;
+//printf("x %d, %s == 0, %s > 0\n", done, ipv6 + 2, save + 2 );
     if (done < 2 && strlen(&ipv6[2]) == 0 && strlen(&save[2]) > 0) {
+//printf("y\n");
       memcpy(ipv6, save, sizeof(ipv6));
-      done = 1;
+      done = 2;
     }
   }
 
+//printf("%s > 0, %s== fe80\n", save +2, ipv6 +2);
+  if (strlen(&save[2]) > 0 && prefer == PREFER_GLOBAL && strncmp(ipv6 + 2, "fe80", 2) == 0) {
+//printf("z\n");
+      memcpy(ipv6, save, sizeof(ipv6));
+      done = 2;
+  }
+  
   if (strlen(&ipv6[2]) == 0) {
     if (_thc_ipv6_showerrors)
       fprintf(stderr, "Warning: no IPv6 address on interface defined\n");
@@ -1013,7 +1045,7 @@ int thc_send_as_overlapping_last_fragment6(char *interface, unsigned char *src, 
   unsigned char buf[frag_len], *adata;
   int count, id = time(NULL) % 2000000000, dptr = 0, last_size, run = 0;
 
-  if (overlap_spoof_type < -1 && overlap_spoof_type > 65535) {
+  if (overlap_spoof_type < -1 || overlap_spoof_type > 65535) {
     fprintf(stderr, "Error: invalid overlap_spoof_type: %d\n", overlap_spoof_type);
     return -1;
   }
@@ -1129,7 +1161,7 @@ int thc_send_as_overlapping_first_fragment6(char *interface, unsigned char *src,
   unsigned char buf[frag_len], *adata;
   int count, id = time(NULL) % 2000000000, dptr = 0, last_size, run = 0;
 
-  if (overlap_spoof_type < -1 && overlap_spoof_type > 65535) {
+  if (overlap_spoof_type < -1 || overlap_spoof_type > 65535) {
     fprintf(stderr, "Error: invalid overlap_spoof_type: %d\n", overlap_spoof_type);
     return -1;
   }
@@ -1426,9 +1458,11 @@ int thc_neighborsol6(char *interface, unsigned char *src, unsigned char *dst, un
     mymac = thc_get_own_mac(interface);
   else
     mymac = srcmac;
-  if (dst == NULL)
-    mydst = thc_resolve6("ff02::1");    // we could do a limited multicast here but we dont
-  else
+  if (dst == NULL) {
+    //mydst = thc_resolve6("ff02::1");    // we could do a limited multicast here but we dont
+    mydst = thc_resolve6("ff02::1:ff00:0");
+    memcpy(mydst + 13, target + 13, 3);
+  } else
     mydst = dst;
   if (target == NULL)
     target = mydst;

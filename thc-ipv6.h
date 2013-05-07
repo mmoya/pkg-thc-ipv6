@@ -1,5 +1,5 @@
 /*
- * (c) 2012 by van Hauser / THC
+ * (c) 2013 by van Hauser / THC
  *
  * THC IPv6 Attack Library Header Files
  *
@@ -14,7 +14,7 @@
   #include <openssl/rsa.h>
 #endif
 
-#define VERSION 	"v2.1"
+#define VERSION 	"v2.3"
 #define AUTHOR 		"van Hauser / THC <vh@thc.org>"
 #define RESOURCE	"www.thc.org"
 
@@ -145,11 +145,16 @@ extern int thc_bind_multicast_to_socket(int s, char *interface, char *src);
 #define NXT_ESP 50
 #define NXT_AH 51
 #define NXT_MIPV6 135
+#define NXT_MOBILITY 135
 #define NXT_PIM 103
 #define NXT_ICMP6 58
 #define NXT_TCP 6
 #define NXT_UDP 17
 #define NXT_DATA 255
+#define NXT_HOSTID 139
+#define NXT_HOSTIDENTIFICATION 139
+#define NXT_SHIM 140
+#define NXT_SHIM6 140
 
 #define IPV6_FRAME_TYPE 0x86dd
 

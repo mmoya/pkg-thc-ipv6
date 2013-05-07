@@ -16,5 +16,5 @@ test "$1" = "-2" && {
 while `true`; do
   fake_mld${X}6 $i query :: ff02::1 1 fe80:: 11:22:33:44:55:66 33:33:00:00:00:02
   test -n "$3" fake_mld${X}6 $i del "$3" ff02::2 1 "$2" 11:22:33:44:55:66
-  sleep(5)
+  sleep 5
 done

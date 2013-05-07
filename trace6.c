@@ -24,22 +24,26 @@ unsigned short int baseport = 1200;
 unsigned int pid = 0;
 unsigned int mtu = 0;
 unsigned int orig_mtu = 0;
-int offset = 48, buf_len = 16, tunnel = 0, do_alert = 0, do_toobig = 0, do_frag = 0, do_dst = 0;
+int offset = 48, buf_len = 16, tunnel = 0, do_alert = 0, do_reply = 0, do_toobig = 0, do_frag = 0, do_dst = 0, do_dst2 = 0;
 int up_to, complete = 0, type = 0, rawmode = 0, finaldst = 0;
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-abdt] [-s src6] interface targetaddress [port]\n\n", prg);
   printf("Options:\n");
   printf("  -a       insert a hop-by-hop header with router alert option.\n");
+  printf("  -D       insert a destination extension header\n");
+  printf("  -E       insert a destination extension header with an invalid option\n");
+  printf("  -F       insert a one-shot fragmentation header\n");
   printf("  -b       instead of an ICMP6 Ping, use TooBig (you will not see the target)\n");
+  printf("  -B       instead of an ICMP6 Ping, use PingReply (you will not see the target)\n");
   printf("  -d       resolves the IPv6 addresses to DNS.\n");
   printf("  -t       enables tunnel detection\n");
   printf("  -s src6  specifies the source IPv6 address\n");
   printf("Maximum hop reach: %d\n\n", INCREASE * (SENDS - 1) + MAX_SEND);
   printf("A basic but very fast traceroute6 program.\n");
   printf("If no port is specified, ICMP6 Ping requests are used, otherwise TCP SYN\n");
-  printf("packets to the specified port.\n");
+  printf("packets to the specified port. Options D, E and F can be use multiple times.\n");
   exit(-1);
 }
 
@@ -208,7 +212,7 @@ int main(int argc, char *argv[]) {
   if (argc < 3 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "abdtrs:FD")) >= 0) {
+  while ((i = getopt(argc, argv, "abBdtrs:FDE")) >= 0) {
     switch (i) {
     case 'd':
       resolve = 1;
@@ -218,6 +222,10 @@ int main(int argc, char *argv[]) {
       break;
     case 'b':
       do_toobig++;
+      type = 2;
+      break;
+    case 'B':
+      do_reply++;
       type = 2;
       break;
     case 'r':
@@ -233,6 +241,9 @@ int main(int argc, char *argv[]) {
     case 'F':
       do_frag++;
       break;
+    case 'E':
+      do_dst2 = 1;
+      // fall through
     case 'D':
       do_dst++;
       break;
@@ -257,6 +268,8 @@ int main(int argc, char *argv[]) {
     src6 = thc_get_own_ipv6(interface, dst6, prefer);
   srcmac = thc_get_own_mac(interface);
   up_to = MAX_SEND;
+  if (do_reply)
+    do_toobig = 0;
 
   if (argc - optind >= 3 && argv[optind + 2] != NULL) {
     if (type) {
@@ -345,6 +358,10 @@ int main(int argc, char *argv[]) {
                 return -1;
             if (do_dst) {
               memset(buf3, 0, 6);
+              if (do_dst2) {
+                buf3[0] = NXT_INVALID;
+                buf3[1] = 1;
+              }
               for (m = 0; m < do_dst; m++)
                 if (thc_add_hdr_dst(pkt, &pkt_len, buf3, 6) < 0)
                   return -1;
@@ -381,8 +398,12 @@ int main(int argc, char *argv[]) {
                 m = do_hdr_size;
               else
                 m = 14;
-              if (thc_add_icmp6(pkt, &pkt_len, ICMP6_TOOBIG, 0, 1480, (unsigned char *) ipv6->pkt + m, 1280 - 40 - 8 - 8, 0) < 0)
-                return -1;
+              if (do_reply) {
+                if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREPLY, 0, 1480, (unsigned char *) ipv6->pkt + m, 1280 - 40 - 8 - 8, 0) < 0)
+                  return -1;
+              } else 
+                if (thc_add_icmp6(pkt, &pkt_len, ICMP6_TOOBIG, 0, 1480, (unsigned char *) ipv6->pkt + m, 1280 - 40 - 8 - 8, 0) < 0)
+                  return -1;
               pkt2 = thc_destroy_packet(pkt2);
             } else
               if (thc_add_tcp(pkt, &pkt_len, baseport + i, dport, pid, 0, TCP_SYN, 5760, 0, NULL, 0, buf_len > 0 ? buf : NULL, buf_len) < 0)
@@ -393,7 +414,7 @@ int main(int argc, char *argv[]) {
             exit(-1);
           }
           pkt = thc_destroy_packet(pkt);
-          usleep(200);
+          usleep(1000);
         } else if (position[i] == NULL)
           up_to = i - 1;
       }
