@@ -18,7 +18,7 @@ char seen[256][16];
 extern int do_hdr_size;
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s interface\n\n", prg);
   printf("Dumps all local routers and their information\n\n");
 //  printf("Use -r to use raw mode.\n\n");

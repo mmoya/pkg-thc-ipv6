@@ -21,7 +21,7 @@ extern int do_6in4;
 extern int do_hdr_vlan;
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-af] [-H o:s:v] [-D o:s:v] [-F dst] [-t ttl] [-c class] [-l label] [-d size] [-S port|-U port] interface src6 dst6 [srcmac [dstmac [data]]]\n\n", prg);
   printf("Craft your special icmpv6 echo request packet.\n");
   printf("You can put an \"x\" into src6, srcmac and dstmac for an automatic value.\n");
@@ -126,8 +126,13 @@ void check_packets(u_char *pingdata, const struct pcap_pkthdr *header, const uns
       printf("%04u.%04u \ttcp-", (int) (ts2.tv_sec - ts.tv_sec - min), usec);
       switch((ptr[53 + offset] % 8)) {
         case 2:
-          printf("syn-ack");
-          resp_type = 0;
+          if (ptr[53 + offset] >= TCP_ACK) {
+            printf("syn-ack");
+            resp_type = 0;
+          } else {
+            printf("syn (double?)");
+            resp_type = 1;
+          }
           break;
         case 4:
           printf("rst");
@@ -152,7 +157,7 @@ int main(int argc, char *argv[]) {
   unsigned char *pkt1 = NULL, buf[2096] = "thcping6", *routers[2], buf2[1300];
   unsigned char *src6 = NULL, *dst6 = NULL, smac[16] = "", dmac[16] = "", *srcmac = smac, *dstmac = dmac;
   char string[255] = "ip6 and dst ", *interface, *d_opt = NULL, *h_opt = NULL, *oo, *ol, *ov;
-  int pkt1_len = 0, flags = 0, frag = 0, alert = 0, quick = 0, route = 0, ttl = 64, label = 0, class = 0, i, j, ether = 0, xl = 0, frag_type = NXT_DST, offset = 14;
+  int pkt1_len = 0, flags = 0, frag = 0, alert = 0, quick = 0, route = 0, ttl = 64, label = 0, class = 0, i, j, k, ether = 0, xl = 0, frag_type = NXT_DST, offset = 14;
   pcap_t *p;
   thc_ipv6_hdr *hdr;
 
@@ -172,7 +177,7 @@ int main(int argc, char *argv[]) {
       quick = 1;
       break;
     case 'f':
-      frag = 1;
+      frag++;
       break;
     case 'E':
       ether = 1;
@@ -322,8 +327,9 @@ int main(int argc, char *argv[]) {
       return -1;
   }
   if (frag) {
-    if (thc_add_hdr_oneshotfragment(pkt1, &pkt1_len, getpid()) < 0)
-      return -1;
+    for (k = 0; k < frag; k++)
+      if (thc_add_hdr_oneshotfragment(pkt1, &pkt1_len, getpid() + k) < 0)
+        return -1;
     if (frag_type == NXT_DST)
       frag_type = NXT_FRAG;
   }
@@ -393,10 +399,10 @@ int main(int argc, char *argv[]) {
       return -1;
   } else
     if (type == NXT_TCP) {
-      if (thc_add_tcp(pkt1, &pkt1_len, 65534, port, (port << 16) + port, 0, TCP_SYN, 5760, 0, NULL, 0, NULL, 0) < 0)
+      if (thc_add_tcp(pkt1, &pkt1_len, port, port, (port << 16) + port, 0, TCP_SYN, 5760, 0, NULL, 0, (unsigned char *) &buf, dlen) < 0)
         return -1;
     } else
-      if (thc_add_udp(pkt1, &pkt1_len, 65534, port, 0, NULL, 0) < 0)
+      if (thc_add_udp(pkt1, &pkt1_len, port, port, 0, (unsigned char *) &buf, dlen) < 0)
         return -1;
     
   if (thc_generate_pkt(interface, srcmac, dstmac, pkt1, &pkt1_len) < 0) {

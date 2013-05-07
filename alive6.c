@@ -122,7 +122,7 @@ unsigned short int dict[] = { 0, 0, 0, 0, /*to */ 0, 0, 0, 0,
                       };*/
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf ("Syntax: %s [-I srcip6] [-i file] [-o file] [-DM] [-p] [-F] [-e opt] [-s port,..] [-a port,..] [-u port,..] [-W TIME] [-dlrvS] interface [unicast-or-multicast-address [remote-router]]\n\n", prg);
   printf("Shows alive addresses in the segment. If you specify a remote router, the\n");
   printf("packets are sent with a routing header prefixed by fragmentation\n");
@@ -367,7 +367,7 @@ void get_ports_from_cmdline(int ports[], char *list, char param) {
 }
 
 int main(int argc, char *argv[]) {
-  unsigned char string[64]; // = "ip6 and dst ";
+  unsigned char string[128]; // = "ip6 and dst ";
   unsigned char *pkt = NULL, *router6 = NULL, *cur_dst, *p2, *p3, *smac, buf2[6];
   unsigned char *multicast6 = NULL, *src6 = NULL, *mac = NULL, *rmac = NULL, *routers[2];
   int pkt_len = 0, prefer = PREFER_GLOBAL, fromto = 0, dictptr = 0, offset = 14;
@@ -632,7 +632,7 @@ int main(int argc, char *argv[]) {
   setvbuf(stderr, NULL, _IONBF, 0);
   if (verbose) {
     timeval = time(NULL);
-    printf("Starting alive6 %s (c) 2012 by van Hauser / THC at %s\n", VERSION, ctime(&timeval));
+    printf("Starting alive6 %s (c) 2013 by van Hauser / THC at %s\n", VERSION, ctime(&timeval));
   }
   while (curr <= list) {
     ok = 1;

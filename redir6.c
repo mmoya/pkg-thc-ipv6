@@ -11,7 +11,7 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s interface victim-ip target-ip original-router new-router [new-router-mac] [hop-limit]\n\n", prg);
   printf("Implant a route into victim-ip, which redirects all traffic to target-ip to\n");
   printf("new-ip. You must know the router which would handle the route.\n");
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (rawmode == 0) {
-    if (argv[6] != NULL)
+    if (argc >= 7)
       sscanf(argv[6], "%x:%x:%x:%x:%x:%x", (unsigned int *) &mac[0], (unsigned int *) &mac[1], (unsigned int *) &mac[2], (unsigned int *) &mac[3], (unsigned int *) &mac[4],
              (unsigned int *) &mac[5]);
     else
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 
   if (argc >= 8)
     ttl = atoi(argv[7]);
-  if (ttl < 0 || ttl > 255)
+  if (ttl <= 0 || ttl > 255)
     ttl = 64;
 
   memset(buf, 'A', 16);

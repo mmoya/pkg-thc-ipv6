@@ -6,7 +6,7 @@
  *   - specify the reverse domain as 2001:db8::/56
  *                                or 0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
  *
- * (c) 2012 by Marc "van Hauser" Heuse <vh(at)thc.org> or <mh(at)mh-sec.de>
+ * (c) 2013 by Marc "van Hauser" Heuse <vh(at)thc.org> or <mh(at)mh-sec.de>
  * The GPL 3 license applies to this code.
  *
  * Compile: gcc -O2 -o dnsrevenum6 dnsrevenum6.c thc-ipv6-lib.o -lcrypto -lssl -lpcap
@@ -244,7 +244,7 @@ int main(int argc, char *argv[]) {
   prg = argv[0];
 
   if (argc < 3) {
-    printf("%s %s (c) 2012 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+    printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
     printf("Syntax: %s dns-server ipv6address\n\n", argv[0]);
     printf("Performs a fast reverse DNS enumeration and is able to cope with slow servers.\n");
     printf("Examples:\n");

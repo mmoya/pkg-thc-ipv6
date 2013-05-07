@@ -7,6 +7,30 @@ thc-ipv6 toolkit development. If this matches *you* send me an
 email to vh (at) thc (dot) org , with "thc-ipv6 antispam" in the
 subject line.
 
+v2.3 - PUBLIC
+ * Added new tool: thcsyn6 - a TCP flooding tool
+ * Added new tool: redirsniff6 - redirects traffic (sniff variant to redir6)
+ * Added new script: thc-ipv6-setup.sh - configuring Linux for thc-ipv6
+ * Added new script: 6to4test.sh - check an ipv4 address for dynamic 6to4 tunnel setup
+ * flood_router26: added -s option for small lifetime which makes the attack even more devasting
+ * trace6:
+    - added -B option for sending echo reply packets (will not show the destination)
+    - added -E option for sending destination headers with invalid option
+ * thcping6:
+    - -U/-S port options now also set the source port
+    - -U/-S options now also send data if given
+    - -f fragment option can now be used multiple times
+ * implementation6:
+    - fixed bug in test case
+    - added icmp6 type/code printing for error replies
+ * toobig6: added -u option to allow testing for unrelated ICMPv6 packet firewall bypasses 
+ * firewall6: added more test cases
+ * thc-ipv6-lib:
+    - fixed address selection bug if global and ULA addresses are present
+    - change NDP to use ff02::1:ffxx:xxx limited multicast addresses
+    - thc_resolve6 ignores now anything after a "/" or in before/after "[]"
+
+
 v2.1 - PUBLIC
  * added new tool: dnssecwalk - performs NSEC walking including IPv6+IPv4 resolving
  * added new tool: firewall6 - various TCP/UDP ACL bypass test cases
