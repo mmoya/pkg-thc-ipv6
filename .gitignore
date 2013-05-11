@@ -1,5 +1,6 @@
-*6
-*6d
+debian/attack-toolkit6/
 debian/attack-toolkit6.debhelper.log
 debian/attack-toolkit6.substvars
 debian/files
+atk6-*
+*.o
