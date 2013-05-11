@@ -3,12 +3,12 @@ Section: net
 Priority: optional
 Maintainer: Maykel Moya <mmoya@mmoya.org>
 Build-Depends: debhelper (>= 9), dpkg-dev (>= 1.16.1~), libpcap-dev, libssl-dev
+Homepage: http://www.thc.org/thc-ipv6/
 Standards-Version: 3.9.3
 
 Package: attack-toolkit6
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Homepage: http://www.thc.org/thc-ipv6/
 Description: IPv6 The Hacker Choice's Attack Toolkit
  Tool set to attack protocol weaknesses of IPv6 and ICMP6.
  .
