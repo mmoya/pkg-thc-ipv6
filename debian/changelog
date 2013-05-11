@@ -1,3 +1,21 @@
+thc-ipv6 (2.3-1) unstable; urgency=low
+
+  * Bump compat level to 9
+    + No need to explicit include buildflags.mk for hardening
+  * Bump Stardard Version to 3.9.4
+  * Imported Upstream version 2.3
+  * Add dependency on libssl-dev
+  * Add links to manpage for new commands
+  * Update .gitignore
+  * Refresh d/patches
+  * Move Homepage field to Source paragraph
+  * Fix watch file
+  * Fix capitalization of Linux in Description
+  * Fix minus signs in manpage
+  * Add patch for fixing spelling errors in binaries
+
+ -- Maykel Moya <mmoya@mmoya.org>  Sat, 1 Jun 2013 13:22:42 +0000
+
 thc-ipv6 (2.1-0.2) unstable; urgency=low
 
   * Added prefix 'atk6' to all binaries (NMU).
