@@ -1,3 +1,3 @@
 version=3
-http://freeworld.thc.org/thc-ipv6 \
-    ../releases/thc-ipv6-(.*)\.tar\.gz
+http://www.thc.org/thc-ipv6 \
+  http://www.thc.org/releases/thc-ipv6-([\d\.]+)\.tar.gz
