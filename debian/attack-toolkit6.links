@@ -7,6 +7,7 @@ usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-detect-new-ip6.8
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-detect_sniffer6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-dnsdict6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-dnsrevenum6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-dnssecwalk.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-dos-new-ip6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-dos_mld.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-dump_router6.8.gz
@@ -44,11 +45,13 @@ usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-parasite6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-passive_discovery6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-randicmp6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-redir6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-redirsniff6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-rsmurf6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-sendpees6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-sendpeesmp6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-smurf6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-thcping6.8.gz
+usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-thcsyn6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-toobig6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-trace6.8.gz
 usr/share/man/man8/attack-toolkit6.8.gz usr/share/man/man8/atk6-fake_pim6.8.gz
