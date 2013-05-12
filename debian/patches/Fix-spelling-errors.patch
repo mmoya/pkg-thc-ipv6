@@ -1,0 +1,114 @@
+From: Maykel Moya <mmoya@mmoya.org>
+Date: Sun, 12 May 2013 21:58:11 +0200
+Subject: Fix spelling errors
+
+---
+ alive6.c          |    2 +-
+ covert_send6.c    |    2 +-
+ fake_router26.c   |    4 ++--
+ fuzz_ip6.c        |    2 +-
+ implementation6.c |    2 +-
+ ndpexhaust26.c    |    2 +-
+ thcsyn6.c         |    2 +-
+ 7 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/alive6.c b/alive6.c
+index 3eb393f..aa16e44 100644
+--- a/alive6.c
++++ b/alive6.c
+@@ -343,7 +343,7 @@ void get_ports_from_cmdline(int ports[], char *list, char param) {
+   char mylist[strlen(list + 1)], *ptr, *ptr2;
+ 
+   if (strtok(list, "0123456789,") != NULL) {
+-    fprintf(stderr, "Error: ports must be defined by numbers and seperated by a comma, e.g. \"-%c 22,53,80\"\n", param);
++    fprintf(stderr, "Error: ports must be defined by numbers and separated by a comma, e.g. \"-%c 22,53,80\"\n", param);
+     exit(-1);
+   }
+   strcpy(mylist, list);
+diff --git a/covert_send6.c b/covert_send6.c
+index b321645..23044cc 100644
+--- a/covert_send6.c
++++ b/covert_send6.c
+@@ -28,7 +28,7 @@ void help(char *prg) {
+   printf("  -k key     encrypt the content with Blowfish-160\n");
+   printf("  -s resend  send each packet RESEND number of times, default: 1\n");
+   printf("\n");
+-  printf("Sends the content of FILE covertly to the target, And its POC - dont except\n");
++  printf("Sends the content of FILE covertly to the target, And its POC - don't except\n");
+   printf("too much sophistication - its just put into the destination header.\n");
+   exit(-1);
+ }
+diff --git a/fake_router26.c b/fake_router26.c
+index 19e2f8c..ad4e5c7 100644
+--- a/fake_router26.c
++++ b/fake_router26.c
+@@ -27,7 +27,7 @@ void help(char *prg) {
+   printf(" -R network/prefix  add a route entry (up to %d times)\n", MAX_ENTRIES);
+   printf(" -r seconds         route entry lifetime of -R (defaults to %d)\n", rlife);
+   printf(" -D dns-server      specify a DNS server (up to %d times)\n", MAX_ENTRIES);
+-  printf(" -L searchlist      specify the DNS domain search list, seperate entries with ,\n");
++  printf(" -L searchlist      specify the DNS domain search list, separate entries with ,\n");
+   printf(" -d seconds         dns entry lifetime of -D (defaults to %d\n", dlife);
+   printf(" -M mtu             the MTU to send, defaults to the interface setting\n");
+   printf(" -s sourceip        the source ip of the router, defaults to your link local\n");
+@@ -37,7 +37,7 @@ void help(char *prg) {
+   printf(" -t ms              retrans timer (defaults to %d)\n", trans);
+   printf(" -p priority        priority \"low\", \"medium\", \"high\" (default), \"reserved\"\n");
+   printf(" -F flags           Set one or more of the following flags: managed, other,\n");
+-  printf("                   homeagent, proxy, reserved; seperate by comma\n");
++  printf("                   homeagent, proxy, reserved; separate by comma\n");
+   printf(" -E type            Router Advertisement Guard Evasion option. Types: \n");
+   printf("     H             simple hop-by-hop header\n");
+   printf("     1             simple one-shot fragmentation header (can add multiple)\n");
+diff --git a/fuzz_ip6.c b/fuzz_ip6.c
+index ebf86a1..9457e2f 100644
+--- a/fuzz_ip6.c
++++ b/fuzz_ip6.c
+@@ -354,7 +354,7 @@ int main(int argc, char *argv[]) {
+     exit(-1);
+   }
+   if (ping < 1 || test_end < test_start) {
+-    printf("dont fuck up the command line options!\n");
++    printf("don't fuck up the command line options!\n");
+     exit(-1);
+   }
+   if (argv[optind + 2] != NULL)
+diff --git a/implementation6.c b/implementation6.c
+index 89699f4..3a52144 100644
+--- a/implementation6.c
++++ b/implementation6.c
+@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
+           src6 = thc_resolve6(optarg);
+           break;
+       default:
+-          fprintf(stderr, "Error: unkown option %c\n", i);
++          fprintf(stderr, "Error: unknown option %c\n", i);
+           exit(-1);
+     }
+   }
+diff --git a/ndpexhaust26.c b/ndpexhaust26.c
+index 56ef8a0..db18060 100644
+--- a/ndpexhaust26.c
++++ b/ndpexhaust26.c
+@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
+          src = thc_resolve6(optarg);
+          break;
+        default:
+-         fprintf(stderr, "Error: unkown option -%c\n", i);
++         fprintf(stderr, "Error: unknown option -%c\n", i);
+          exit(-1);
+      }
+    }
+diff --git a/thcsyn6.c b/thcsyn6.c
+index 48eecec..3526ef6 100644
+--- a/thcsyn6.c
++++ b/thcsyn6.c
+@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
+          src = thc_resolve6(optarg);
+          break;
+        default:
+-         fprintf(stderr, "Error: unkown option -%c\n", i);
++         fprintf(stderr, "Error: unknown option -%c\n", i);
+          exit(-1);
+      }
+    }

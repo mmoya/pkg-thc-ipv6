@@ -7,7 +7,7 @@ Subject: Briefly document all programs in manpage
  1 file changed, 171 insertions(+), 16 deletions(-)
 
 diff --git a/thc-ipv6.8 b/thc-ipv6.8
-index f6ed718..2ff9a48 100644
+index f6ed718..0ad4c83 100644
 --- a/thc-ipv6.8
 +++ b/thc-ipv6.8
 @@ -2,7 +2,7 @@
@@ -51,7 +51,7 @@ index f6ed718..2ff9a48 100644
 +.B address6 <mac-address/ipv4-address/ipv6-address> [ipv6-prefix]
 +Converts a mac or ipv4 address to an ipv6 address (link local if no prefix is
 +given as 2nd option) or, when given an ipv6 address, prints the mac or ipv4
-+address. Prints all possible variations. Returns -1 on errors or the number of
++address. Prints all possible variations. Returns \-1 on errors or the number of
 +variations found.
 +.TP
  .B alive6 <interface> [unicast-or-multicast-address [remote-router]]
@@ -153,7 +153,7 @@ index f6ed718..2ff9a48 100644
 +.TP
 +.B firewall6 [-u] <interface> <destination> <port> [test-case-no]
 +Performs various ACL bypass attempts to check implementations.
-+Defaults to TCP ports, option -u switches to UDP.
++Defaults to TCP ports, option \-u switches to UDP.
 +For all test cases to work, ICMPv6 ping to the destination must be allowed.
 +.TP
  .B flood_advertise6 <interface>
@@ -201,8 +201,8 @@ index f6ed718..2ff9a48 100644
 +.B inject_alive6 [-ap] <interface>
 +This tool answers to keep-alive requests on PPPoE and 6in4 tunnels; for PPPoE\nit also sends keep-alive requests.
 +Note that the appropriate environment variable THC_IPV6_{PPPOE|6IN4} must be set.
-+Option -a will actively send alive requests every 15 seconds.
-+Option -p will not send replies to alive requests.
++Option \-a will actively send alive requests every 15 seconds.
++Option \-p will not send replies to alive requests.
 +.TP
 +.B inverse_lookup6 <interface> <mac-address>
 +Performs an inverse address query, to get the IPv6 addresses that are
@@ -216,15 +216,15 @@ index f6ed718..2ff9a48 100644
 +.B ndpexhaust26 <interface> [-acpPTUrR] [-s sourceip6] <target-network>
 +Flood the target /64 network with ICMPv6 TooBig error messages.
 +This tool version is manyfold more effective than ndpexhaust6.
-+-a      add a hop-by-hop header with router alert.
-+-c      do not calculate the checksum to save time.
-+-p      send ICMPv6 Echo Requests.
-+-P      send ICMPv6 Echo Reply.
-+-T      send ICMPv6 Time-to-live-exeeded.
-+-U      send ICMPv6 Unreachable (no route).
-+-r      randomize the source from your /64 prefix.
-+-R      randomize the source fully.
-+-s sourceip6  use this as source ipv6 address.
++\-a      add a hop-by-hop header with router alert.
++\-c      do not calculate the checksum to save time.
++\-p      send ICMPv6 Echo Requests.
++\-P      send ICMPv6 Echo Reply.
++\-T      send ICMPv6 Time-to-live-exeeded.
++\-U      send ICMPv6 Unreachable (no route).
++\-r      randomize the source from your /64 prefix.
++\-R      randomize the source fully.
++\-s sourceip6  use this as source ipv6 address.
 +.TP
 +.B ndpexhaust6 <interface> <target-network>
 +Randomly pings IPs in target network.
