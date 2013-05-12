@@ -31,7 +31,7 @@ Description: IPv6 The Hacker Choice's Attack Toolkit
  parasite6: icmp neighbor solitication/advertisement spoofer.
  redir6: redirect traffic to you intelligently (man-in-the-middle)
          with a clever icmp6 redirect spoofer.
- rsmurf6: remote smurfer (known to work only against linux at the
+ rsmurf6: remote smurfer (known to work only against Linux at the
           moment).
  thcping6: sends a hand crafted ping6 packet.
  toobig6: mtu decreaser with the same intelligence as redir6.
