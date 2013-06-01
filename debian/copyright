@@ -3,14 +3,11 @@ Upstream-Name: The Hacker Choice's IPv6 Attack Toolkit
 Upstream-Contact: van Hauser <vh@thc.org>
 Source: http://www.thc.org/thc-ipv6/
 License: GPL-3.0
-Copyright: 2005-2012 van Hauser <vh@thc.org>
+Copyright: 2005-2013 van Hauser <vh@thc.org>
 
 Files: debian/*
 Copyright: 2007-2012 Michael Gebetsroither <gebi@grml.org>
-License: GPL-3.0+
-
-Files: debian/*
-Copyright: 2012 Maykel Moya <mmoya@mmoya.org>
+           2012 Maykel Moya <mmoya@mmoya.org>
 License: GPL-3.0+
 
 License: GPL-3.0
