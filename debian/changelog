@@ -1,10 +1,4 @@
-thc-ipv6 (2.3-3.1) unstable; urgency=low
-
-  * Changed all previous changelog entries from 'unstable' to 'unreleased'.
-
- -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Tue, 13 Aug 2013 12:27:14 +0100
-
-thc-ipv6 (2.3-2.1) unreleased; urgency=low
+thc-ipv6 (2.3-2.1) unstable; urgency=low
 
   * Main binary package is renamed to thc-ipv6.
   * The description is updated to explicitly refer to 'attack toolkit'.
@@ -12,7 +6,7 @@ thc-ipv6 (2.3-2.1) unreleased; urgency=low
 
  -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Tue, 6 Aug 2013 10:00:29 +0100
 
-thc-ipv6 (2.3-1) unreleased; urgency=low
+thc-ipv6 (2.3-1) unstable; urgency=low
 
   * Bump compat level to 9
     + No need to explicit include buildflags.mk for hardening
@@ -30,19 +24,19 @@ thc-ipv6 (2.3-1) unreleased; urgency=low
 
  -- Maykel Moya <mmoya@mmoya.org>  Sat, 1 Jun 2013 13:22:42 +0000
 
-thc-ipv6 (2.1-0.2) unreleased; urgency=low
+thc-ipv6 (2.1-0.2) unstable; urgency=low
 
   * Added prefix 'atk6' to all binaries (NMU).
 
  -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Mon, 8 Apr 2013 14:54:55 +0100
 
-thc-ipv6 (2.1-0.1) unreleased; urgency=low
+thc-ipv6 (2.1-0.1) unstable; urgency=low
 
   * New upstream release (NMU).
 
  -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Mon, 1 Apr 2013 16:16:55 +0100
 
-thc-ipv6 (2.0-1) unreleased; urgency=low
+thc-ipv6 (2.0-1) unstable; urgency=low
 
   * New upstream release (closes: #690520).
   * Move to 3.0 (quilt) format.
@@ -57,7 +51,7 @@ thc-ipv6 (2.0-1) unreleased; urgency=low
 
  -- Maykel Moya <mmoya@mmoya.org>  Mon, 22 Oct 2012 13:29:16 +0000
 
-thc-ipv6 (1.4-1) unreleased; urgency=low
+thc-ipv6 (1.4-1) unstable; urgency=low
 
   * [325b41d] New upstream version 1.4 [Closes: issue948]
     - [05322ea] adapt for added binaries
@@ -71,7 +65,7 @@ thc-ipv6 (1.4-1) unreleased; urgency=low
 
  -- Christian Hofstaedtler <ch@grml.org>  Mon, 14 Mar 2011 23:04:51 +0100
 
-thc-ipv6 (0.7-5) unreleased; urgency=low
+thc-ipv6 (0.7-5) unstable; urgency=low
 
   [ Michael Prokop ]
   * Add dpatch to Build-Depends, remove gcc
@@ -82,19 +76,19 @@ thc-ipv6 (0.7-5) unreleased; urgency=low
 
  -- Michael Gebetsroither <gebi@grml.org>  Sun, 13 May 2007 22:17:25 +0200
 
-thc-ipv6 (0.7-4) unreleased; urgency=low
+thc-ipv6 (0.7-4) unstable; urgency=low
 
   * added copy of homepage for license clarification
 
  -- Michael Gebetsroither <gebi@grml.org>  Sat, 21 Apr 2007 17:38:26 +0200
 
-thc-ipv6 (0.7-3) unreleased; urgency=low
+thc-ipv6 (0.7-3) unstable; urgency=low
 
   * fix umask build problem
 
  -- Michael Gebetsroither <gebi@grml.org>  Fri, 20 Apr 2007 10:42:39 +0200
 
-thc-ipv6 (0.7-2) unreleased; urgency=low
+thc-ipv6 (0.7-2) unstable; urgency=low
 
   * Add libssl-dev to build-depends
   * Changed email to gebi@grml.org
@@ -102,7 +96,7 @@ thc-ipv6 (0.7-2) unreleased; urgency=low
 
  -- Michael Gebetsroither <gebi@grml.org>  Thu,  8 Feb 2007 20:54:25 +0100
 
-thc-ipv6 (0.7-1) unreleased; urgency=low
+thc-ipv6 (0.7-1) unstable; urgency=low
 
   * New upstream release.
   * Bumb Standard Version to 3.7.2 (no further changes).
@@ -112,14 +106,14 @@ thc-ipv6 (0.7-1) unreleased; urgency=low
 
  -- Michael Prokop <mika@grml.org>  Wed, 29 Nov 2006 22:48:37 +0100
 
-thc-ipv6 (0.6-2) unreleased; urgency=low
+thc-ipv6 (0.6-2) unstable; urgency=low
 
   * Few package corrections
   * Added manpages for packages
 
  -- Michael Gebetsroither <michael.geb@gmx.at>  Wed, 28 Jun 2006 13:41:24 +0200
 
-thc-ipv6 (0.6-1) unreleased; urgency=low
+thc-ipv6 (0.6-1) unstable; urgency=low
 
   * Initial release
 
