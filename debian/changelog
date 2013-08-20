@@ -1,3 +1,30 @@
+thc-ipv6 (2.3-1) unstable; urgency=low
+
+  [ Maykel Moya ]
+
+  * Bump compat level to 9
+    + No need to explicit include buildflags.mk for hardening
+  * Bump Stardard Version to 3.9.4
+  * Imported Upstream version 2.3
+  * Add dependency on libssl-dev
+  * Add links to manpage for new commands
+  * Update .gitignore
+  * Refresh d/patches
+  * Move Homepage field to Source paragraph
+  * Fix watch file
+  * Fix capitalization of Linux in Description
+  * Fix minus signs in manpage
+  * Add patch for fixing spelling errors in binaries
+
+  [ Arturo Borrero Gonzalez ]
+
+  * Main binary package is renamed to thc-ipv6.
+  * The description is updated to explicitly refer to 'attack toolkit'.
+  * Fixed the date in the '2.1-0.1' changelog entry (from +0001 to +0100).
+  * Changed all previous changelog entries from 'unstable' to 'UNRELEASED'.
+
+ -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Tue, 20 Aug 2013 10:01:47 +0100
+
 thc-ipv6 (2.1-0.2) UNRELEASED; urgency=low
 
   * Added prefix 'atk6' to all binaries (NMU).
