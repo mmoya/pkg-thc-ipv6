@@ -21,7 +21,7 @@ void help(char *prg) {
   printf("Syntax: %s interface [target6]\n\n", prg);
   printf("Tests if systems on the local LAN are sniffing.\n");
   printf("Works against Windows, Linux, OS/X and *BSD\n");
-  printf("If no target is given, the link-local-all-nodes address is used, which\nhowever rarely works.\n");
+  printf("If no target is given, the link-local-all-nodes address is used, which\nhowever not always works.\n");
   exit(-1);
 }
 
@@ -103,11 +103,11 @@ int main(int argc, char *argv[]) {
   } else
     dst6 = thc_resolve6("ff02::1");
   if ((src6 = thc_get_own_ipv6(interface, dst6, PREFER_LINK)) == NULL) {
-    fprintf(stderr, "Error: no ipv6 address found for interface %s!\n", interface);
+    fprintf(stderr, "Error: no IPv6 address found for interface %s!\n", interface);
     exit(-1);
   }
 
-  if ((pkt1 = thc_create_ipv6(interface, PREFER_LINK, &pkt1_len, src6, dst6, 255, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt1_len, src6, dst6, 255, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt1, &pkt1_len, ICMP6_ECHOREQUEST, 0, flags, (unsigned char *) &buf, 128, 0) < 0)
     return -1;
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  if ((pkt2 = thc_create_ipv6(interface, PREFER_LINK, &pkt2_len, src6, dst6, 255, 0, 0, 0, 0)) == NULL)
+  if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt2_len, src6, dst6, 255, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_hdr_dst(pkt2, &pkt2_len, (unsigned char *) &buf2, sizeof(buf2)) < 0)
     return -1;

@@ -10,7 +10,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <time.h>
-#include <pcap.h>
 #include "thc-ipv6.h"
 
 void help(char *prg) {
@@ -18,8 +17,8 @@ void help(char *prg) {
   printf("Syntax:\n\t%s mac-address [ipv6-prefix]\n", prg);
   printf("\t%s ipv4-address [ipv6-prefix]\n", prg);
   printf("\t%s ipv6-address\n\n", prg);
-  printf("Converts a mac or ipv4 address to an ipv6 address (link local if no prefix is\n");
-  printf("given as 2nd option) or, when given an ipv6 address, prints the mac or ipv4\n");
+  printf("Converts a mac or IPv4 address to an IPv6 address (link local if no prefix is\n");
+  printf("given as 2nd option) or, when given an IPv6 address, prints the mac or IPv4\n");
   printf("address. Prints all possible variations. Returns -1 on errors or the number of\n");
   printf("variations found\n");
   exit(-1);
@@ -85,7 +84,7 @@ int main(int argc, char *argv[]) {
     if (found > 0)
       return found;
     
-    fprintf(stderr, "Error: the ipv6 address does not contain a mac or encoded ipv4 address\n");
+    fprintf(stderr, "Error: the IPv6 address does not contain a mac or encoded IPv4 address\n");
     return -1;
   }
   
@@ -163,6 +162,6 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  fprintf(stderr, "Error: neither a valid mac, ipv4 or ipv6 address\n");
+  fprintf(stderr, "Error: neither a valid mac, IPv4 or IPv6 address\n");
   return -1;
 }

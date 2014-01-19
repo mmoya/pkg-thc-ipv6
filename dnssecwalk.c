@@ -2,7 +2,7 @@
  * Simple DNSSEC walker requiring no special libraries.
  *
  * (c) 2013 by Marc "van Hauser" Heuse <vh(at)thc.org> or <mh(at)mh-sec.de>
- * The GPL 3 license applies to this code.
+ * The AGPL v3 license applies to this code.
  *
  * Works against DNSSEC servers which have NSEC enabled (default)
  * instead of NSEC3 :-)
@@ -21,6 +21,7 @@
 #include <netdb.h>
 #include <signal.h>
 #include <ctype.h>
+#include "thc-ipv6.h"
 
 #define RETRY 5
 int debug = 0, errcnt = 0, sock, ensure = 0, dores = -1;
@@ -130,7 +131,7 @@ int main(int argc, char **argv) {
   strncpy(nexthost, argv[optind + 1], sizeof(nexthost) - 1);
   nexthost[sizeof(nexthost) - 1] = 0;
 
-  memcpy(buf, (char *) &pid, 2);
+  memcpy(buf, (char *) &pid + _TAKE2, 2);
   memcpy(buf + 2, b1, sizeof(b1));
   i = 2 + sizeof(b1);
   fixi = i;

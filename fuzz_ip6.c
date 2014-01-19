@@ -155,7 +155,7 @@ void help(char *prg) {
   printf("Syntax: %s [-x] [-t number | -T number] [-p number] [-IFSDHRJ] [-X|-1|-2|-3|-4|-5|-6|-7|-8|-9|-0 port] interface unicast-or-multicast-address [address-in-data-pkt]\n\n", prg);
   printf("Fuzzes an icmp6 packet\n");
   printf("Options:\n");
-  printf(" -X         do not add any ICMP/TCP header (tranport laye)\n");
+  printf(" -X         do not add any ICMP/TCP header (transport layer)\n");
   printf(" -1         fuzz ICMP6 echo request (default)\n");
   printf(" -2         fuzz ICMP6 neighbor solicitation\n");
   printf(" -3         fuzz ICMP6 neighbor advertisement\n");
@@ -354,7 +354,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
   if (ping < 1 || test_end < test_start) {
-    printf("dont fuck up the command line options!\n");
+    printf("don't fuck up the command line options!\n");
     exit(-1);
   }
   if (argv[optind + 2] != NULL)
@@ -372,6 +372,10 @@ int main(int argc, char *argv[]) {
     src6 = thc_get_own_ipv6(interface, dst6, PREFER_GLOBAL);
   else
     src6 = thc_get_own_ipv6(interface, dst6, PREFER_LINK);
+  if (src6 == NULL) {
+    fprintf(stderr, "Error: no IPv6 address configured on interface %s\n", interface);
+    exit(-1);
+  }
   strcat(string, thc_ipv62notation(src6));
   if (sroute) {
     if (someaddr6 != NULL)
@@ -400,7 +404,7 @@ int main(int argc, char *argv[]) {
     }
   // generate basic packet
   strcpy(fuzzbuf, fuzztype_ether);
-  if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
   if (header)
     strcat(fuzzbuf, fuzztype_ip6);
@@ -823,7 +827,7 @@ int main(int argc, char *argv[]) {
       sip = (unsigned short int *) &pkt_bak[test_pos];
       if (test_cnt <= COUNT_WORD) {
         if (*sip != words[test_cnt - 1])
-          memcpy((char *) &hdr->pkt[test_pos], (char *) &words[test_cnt - 1], 2);
+          memcpy((char *) &hdr->pkt[test_pos], (char *) &words[test_cnt - 1] + _TAKE2, 2);
         else
           do_it = 0;
       } else {
@@ -856,42 +860,42 @@ int main(int argc, char *argv[]) {
       if (test_current >= test_start && test_current <= test_end && do_fuzz) {
         // fill icmp id+seq and unique buffer with test case number
         if (fragment)
-          memcpy(hdr->pkt + frag_offset + 58, (char *) &test_current, 4);
+          memcpy(hdr->pkt + frag_offset + 58, (char *) &test_current + _TAKE4, 4);
         switch (do_type) {
         case DO_NONE:
           // empty
           break;
         case DO_PING:
           for (i = 0; i < 4 + 1; i++)
-            memcpy(hdr->pkt + offset + 58 + i * 4, (char *) &test_current, 4);
+            memcpy(hdr->pkt + offset + 58 + i * 4, (char *) &test_current + _TAKE4, 4);
           break;
         case DO_TCP:
-          memcpy(hdr->pkt + offset + 58, (char *) &test_current, 4);
+          memcpy(hdr->pkt + offset + 58, (char *) &test_current + _TAKE4, 4);
           break;
         case DO_NEIGHSOL:
         case DO_NEIGHADV:
           break;                // do nothing for these
         case DO_NODEQUERY:
-          memcpy(hdr->pkt + offset + 66, (char *) &test_current, 4);
+          memcpy(hdr->pkt + offset + 66, (char *) &test_current + _TAKE4, 4);
           break;
         case DO_RA:
-          memcpy(hdr->pkt + offset + 0x62, (char *) &test_current, 4);  // prefix update
+          memcpy(hdr->pkt + offset + 0x62, (char *) &test_current + _TAKE4, 4);  // prefix update
           memcpy(hdr->pkt + offset + 0x7e, hdr->pkt + offset + 0x5e, 16);       // routing update
-          memcpy(hdr->pkt + 8, (char *) &test_current, 4);    // srcmac update
-          memcpy(hdr->pkt + offset + 0x72, (char *) &test_current, 4);  // srcmac update
-          memcpy(hdr->pkt + 0x10 + off2, (char *) &test_current, 4);       // srcip update
+          memcpy(hdr->pkt + 8, (char *) &test_current + _TAKE4, 4);    // srcmac update
+          memcpy(hdr->pkt + offset + 0x72, (char *) &test_current + _TAKE4, 4);  // srcmac update
+          memcpy(hdr->pkt + 0x10 + off2, (char *) &test_current + _TAKE4, 4);       // srcip update
           memcpy(hdr->original_src, hdr->pkt + 8 + off2, 16);      // srcip update for checksum
           break;
         case DO_MLD_QUERY:
         case DO_MLD_DONE:
         case DO_MLD_REP:
         case DO_MLD2_QUERY:
-          memcpy(hdr->pkt + offset + 0x4a, (char *) &test_current, 4);
+          memcpy(hdr->pkt + offset + 0x4a, (char *) &test_current + _TAKE4, 4);
           break;
         case DO_MLD2_REPORT:   //??? XXX TODO CHECK
-          memcpy(hdr->pkt + offset + 0x4d, (char *) &test_current, 4);
-          memcpy(hdr->pkt + offset + 0x4d + 68, (char *) &test_current, 4);
-          memcpy(hdr->pkt + offset + 0x4d + 136, (char *) &test_current, 4);
+          memcpy(hdr->pkt + offset + 0x4d, (char *) &test_current + _TAKE4, 4);
+          memcpy(hdr->pkt + offset + 0x4d + 68, (char *) &test_current + _TAKE4, 4);
+          memcpy(hdr->pkt + offset + 0x4d + 136, (char *) &test_current + _TAKE4, 4);
           break;
         default:
           fprintf(stderr, "ERROR!!!\n");

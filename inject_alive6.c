@@ -51,7 +51,7 @@ void intercept(u_char *foo, const struct pcap_pkthdr *header, const unsigned cha
     if (ipv6hdr[40] == ICMP6_PINGREQUEST) {
       printf("Keep-alive ping request ID 0x%x seen\n", htonl(*seq));
       if (passive == 0) {
-        if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, ipv6hdr + 24, ipv6hdr + 8, 255, 0, 0, 0, 0)) == NULL)
+        if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, ipv6hdr + 24, ipv6hdr + 8, 255, 0, 0, 0, 0)) == NULL)
           return;
         if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREPLY, 0, htonl(*seq), (unsigned char *) ipv6hdr + 40 + 8, len - 40 - 8, 0) < 0)
           return;

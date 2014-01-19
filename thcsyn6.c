@@ -14,13 +14,11 @@ void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-AcDrRS] [-p port] [-s sourceip6] interface target port\n\n", prg);
   printf("Options:\n");
-//  printf(" -a      add a hop-by-hop header with router alert\n");
-//  printf(" -c      do not calculate the checksum to save time\n");
   printf(" -A      send TCP-ACK packets\n");
   printf(" -S      send TCP-SYN-ACK packets\n");
   printf(" -r      randomize the source from your /64 prefix\n");
   printf(" -R      randomize the source fully\n");
-  printf(" -s sourceip6  use this as source ipv6 address\n");
+  printf(" -s sourceip6  use this as source IPv6 address\n");
   printf(" -D      randomize the destination (treat as /64)\n");
   printf(" -p port       use fixed source port\n");
   printf("\nFlood the target port with TCP-SYN packets. If you supply \"x\" as port, it\nis randomized.\n");
@@ -32,12 +30,10 @@ void help(char *prg) {
 int main(int argc, char *argv[]) {
   char *interface, *ptr, buf2[8];
   unsigned char *dst = NULL, *dstmac = NULL, *src = NULL, *srcmac = NULL;
-  int i, offset = 14, type = TCP_SYN, alert = 0, randsrc = 0, randdst = 0, randsrcp = 1, randdstp = 0, dont_crc = 0, seq;
-  unsigned char *pkt = NULL, ip6[8];
+  int i, type = TCP_SYN, alert = 0, randsrc = 0, randdst = 0, randsrcp = 1, randdstp = 0, dont_crc = 0, seq;
+  unsigned char *pkt = NULL;
   int pkt_len = 0, count = 0;
   unsigned short int sport, port;
-  thc_ipv6_hdr *hdr;
-  unsigned int filler = IDS_STRING, mychecksum;
 
   if (argc < 3 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
@@ -76,7 +72,7 @@ int main(int argc, char *argv[]) {
          src = thc_resolve6(optarg);
          break;
        default:
-         fprintf(stderr, "Error: unkown option -%c\n", i);
+         fprintf(stderr, "Error: unknown option -%c\n", i);
          exit(-1);
      }
    }
@@ -104,10 +100,14 @@ int main(int argc, char *argv[]) {
   }
   
   if (src == NULL)
-    if ((src = thc_get_own_ipv6(interface, dst, PREFER_GLOBAL)) == NULL || (src[0] == 0xfe && src[1] == 0x80)) {
-      fprintf(stderr, "Error: no global ipv6 address configured on interface %s\n", interface);
+    if ((src = thc_get_own_ipv6(interface, dst, PREFER_GLOBAL)) == NULL) {
+      fprintf(stderr, "Error: no IPv6 address configured on interface %s\n", interface);
       exit(-1);
     }
+  if (src[0] >= 0xfe && dst[0] < 0xfe) {
+    fprintf(stderr, "Error: link local address on interface, destination however is remote\n");
+    exit(-1);
+  }
   
   if ((dstmac = thc_get_mac(interface, src, dst)) == NULL) {
     fprintf(stderr, "Error: can not find a route to target %s\n", argv[2]);
@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
       port = rand() % 65536;
     seq = rand();
     
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     if (alert) {
       if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf2, 6) < 0)

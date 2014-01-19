@@ -24,8 +24,7 @@ int main(int argc, char *argv[]) {
   char rdatabuf[1024], wdatabuf[1024], cmsgbuf[1024], mybuf[1024];
   unsigned char *routerip6, *mac6 = mac, *ip6, *ptr, *ptr1, *ptr2, *ptr3;
   unsigned char *dns;
-  int size, /*mtu = 1500, */ i, j, k, l, m, s, len, t, mlen, csize = 0;
-  socklen_t fromlen;
+  int size, fromlen = 0, /*mtu = 1500, */ i, j, k, l, m, s, len, t, mlen, csize = 0;
   static struct iovec iov;
   struct sockaddr_storage from;
   struct msghdr mhdr;
@@ -44,6 +43,10 @@ int main(int argc, char *argv[]) {
 
   memset(mac, 0, sizeof(mac));
   interface = argv[1];
+  if (thc_get_own_mac(interface) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   if (argc >= 6 && (ptr = argv[5]) != NULL)
     sscanf(ptr, "%x:%x:%x:%x:%x:%x", (unsigned int *) &mac[0], (unsigned int *) &mac[1], (unsigned int *) &mac[2], (unsigned int *) &mac[3], (unsigned int *) &mac[4],
            (unsigned int *) &mac[5]);
@@ -220,7 +223,7 @@ int main(int argc, char *argv[]) {
           }
           // add 02, 23
           j = time(NULL);
-          memcpy(mybuf + 8, (char *) &j, 4);
+          memcpy(mybuf + 8, (char *) &j + _TAKE4, 4);
           memcpy(wdatabuf + i, mybuf, mlen);
           i += mlen;
           // now expand 3
@@ -228,7 +231,7 @@ int main(int argc, char *argv[]) {
             memcpy(wdatabuf + i, rdatabuf + k, 16);
           } else {              // or create new
             wdatabuf[i + 1] = 3;
-            memcpy(wdatabuf + i + 4, (char *) &j, 4);   // copy time as IAID
+            memcpy(wdatabuf + i + 4, (char *) &j + _TAKE4, 4);   // copy time as IAID
           }
           wdatabuf[i + 3] = 40;
           memset(wdatabuf + i + 8, 0, 8);

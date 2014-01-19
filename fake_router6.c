@@ -33,7 +33,7 @@ void send_rs_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
   if (ipv6hdr[6] != NXT_ICMP6 || ipv6hdr[40] != ICMP6_ROUTERSOL || header->caplen < 14 + 40 + 2)
     return;
 
-  if ((pkt = thc_create_ipv6(frint, PREFER_LINK, &pkt_len, frip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(frint, PREFER_LINK, &pkt_len, frip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
     return;
   if (do_hop) {
     type = NXT_HBH;
@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
 
   frbuflen = i;
 
-  if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
     return -1;
 
   if (do_hop) {

@@ -43,6 +43,10 @@ int main(int argc, char *argv[]) {
   setvbuf(stdout, NULL, _IONBF, 0);
 
   interface = argv[1];
+  if (thc_get_own_mac(interface) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
 
   if (argc > 2)
     if ((target = thc_resolve6(argv[2])) == NULL) {
@@ -69,7 +73,7 @@ int main(int argc, char *argv[]) {
   if (target != NULL)
     memcpy(buf, target, 16);
 
-  printf("Starting to flood network with neighbor solicitations on %s (Press Control-C to end, a dot is printed for every 100 packet):\n", interface);
+  printf("Starting to flood network with neighbor solicitations on %s (Press Control-C to end, a dot is printed for every 1000 packets):\n", interface);
   while (1) {
 
     // use previous src as target if we did not specify a target
@@ -86,7 +90,7 @@ int main(int argc, char *argv[]) {
     memcpy(&buf[20], mac + 2, 4);
     count++;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     if (thc_add_icmp6(pkt, &pkt_len, ICMP6_NEIGHBORSOL, 0, 0, buf, sizeof(buf), 0) < 0)
       return -1;
@@ -99,7 +103,7 @@ int main(int argc, char *argv[]) {
 
     pkt = thc_destroy_packet(pkt);
 //    usleep(1);
-    if (count % 100 == 0)
+    if (count % 1000 == 0)
       printf(".");
   }
   return 0;

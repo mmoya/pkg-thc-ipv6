@@ -73,10 +73,13 @@ int main(int argc, char *argv[]) {
     (unsigned int *) &dmac[2], (unsigned int *) &dmac[3], (unsigned int *) &dmac[4], (unsigned int *) &dmac[5]);
 
   mac = argv[2];
-  smac = thc_get_own_mac(interface);
+  if ((smac = thc_get_own_mac(interface)) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   dst6 = thc_resolve6("ff02::1");
 
-  if ((pkt1 = thc_create_ipv6(interface, PREFER_LINK, &pkt1_len, NULL, dst6, 255, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt1_len, NULL, dst6, 255, 0, 0, 0, 0)) == NULL)
     return -1;
   memset(buf, 0, sizeof(buf));
   buf[0] = 0x01;

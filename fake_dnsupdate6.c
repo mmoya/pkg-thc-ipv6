@@ -54,11 +54,11 @@ int main(int argc, char **argv) {
 
   freeaddrinfo(ai);
   if ((dst = thc_resolve6(argv[3])) == NULL) {
-    fprintf(stderr, "Error: not a valid ipv6 address: %s\n", argv[3]);
+    fprintf(stderr, "Error: not a valid IPv6 address: %s\n", argv[3]);
     exit(-1);
   }
 
-  memcpy(buf, (char *) &pid, 2);
+  memcpy(buf, (char *) &pid + _TAKE2, 2);
   memcpy(buf + 2, b1, sizeof(b1));
   i = 2 + sizeof(b1);
 

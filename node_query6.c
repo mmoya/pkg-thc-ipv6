@@ -92,7 +92,9 @@ void dump_node_reply(u_char *foo, const struct pcap_pkthdr *header, const unsign
 }
 
 void clean_exit(int sig) {
-  exit(0);
+  if (seen == 0)
+    printf("No reply received.\n");
+  exit(ret);
 }
 
 int main(int argc, char *argv[]) {
@@ -132,7 +134,7 @@ int main(int argc, char *argv[]) {
   memcpy(buf + 8, dst, 16);
   i = 24;
   cnt += getpid();
-  memcpy(buf + 4, (char *) &cnt, 4);
+  memcpy(buf + 4, (char *) &cnt + _TAKE4, 4);
   cnt++;
 
   if ((p = thc_pcap_init(interface, string)) == NULL) {
@@ -140,25 +142,25 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, NULL, dst, 255, 0, 0, 0xe0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, NULL, dst, 255, 0, 0, 0xe0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_INFOREQUEST, 0, 0x00020000, buf, i, 0) < 0)
     return -1;
   if (thc_generate_and_send_pkt(interface, mac6, NULL, pkt, &pkt_len) < 0)
     return -1;
   usleep(1000);
-  memcpy(buf + 4, (char *) &cnt, 4);
+  memcpy(buf + 4, (char *) &cnt + _TAKE4, 4);
   cnt++;
-  if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, NULL, dst, 255, 0, 0, 0xe0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, NULL, dst, 255, 0, 0, 0xe0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_INFOREQUEST, 0, 0x0003003e, buf, i, 0) < 0)
     return -1;
   if (thc_generate_and_send_pkt(interface, mac6, NULL, pkt, &pkt_len) < 0)
     return -1;
   usleep(1000);
-  memcpy(buf + 4, (char *) &cnt, 4);
+  memcpy(buf + 4, (char *) &cnt + _TAKE4, 4);
   cnt++;
-  if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, NULL, dst, 255, 0, 0, 0xe0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, NULL, dst, 255, 0, 0, 0xe0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_INFOREQUEST, 0, 0x00040002, buf, i, 0) < 0)
     return -1;
@@ -171,5 +173,6 @@ int main(int argc, char *argv[]) {
     while (thc_pcap_check(p, (char *) dump_node_reply, NULL) > 0);
     usleep(100);
   }
-  return ret;
+  clean_exit(0);
+  return 0; // not reached
 }

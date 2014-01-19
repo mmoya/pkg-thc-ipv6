@@ -73,7 +73,7 @@ void intercept(u_char *foo, const struct pcap_pkthdr *header, const unsigned cha
   free(ptr2);
   free(ptr4);
 
-  ipv6->pkt[pkt_len - 28] = 0x20; // reset SOL flag, OVERRIDE only
+  ipv6->pkt[pkt_len - 28] = 0xa0; // reset SOL flag, ROUTER+OVERRIDE only
   ipv6->pkt[56 + (do_dst * 1400) + (do_hop + do_frag) * 8] = 0;
   ipv6->pkt[57 + (do_dst * 1400) + (do_hop + do_frag) * 8] = 0;
   mychecksum = checksum_pseudo_header(ipv6->pkt + 22, ipv6->pkt + 38, NXT_ICMP6, ipv6->pkt + 54 + (do_dst * 1400) + (do_hop + do_frag) * 8, 32);
@@ -194,6 +194,10 @@ int main(int argc, char *argv[]) {
            (unsigned int *) &mac[5]);
   else
     ownmac = thc_get_own_mac(interface);
+  if (thc_get_own_ipv6(interface, NULL, PREFER_LINK) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   memset(dummy, 'X', sizeof(dummy));
   dummy[16] = 2;
   dummy[17] = 1;
@@ -203,7 +207,7 @@ int main(int argc, char *argv[]) {
   setvbuf(stderr, NULL, _IONBF, 0);
   for (i = 0; i <= 0 + do_reverse; i++) {
 //    printf("i: %d\n", i);
-    if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, dummy, dummy, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, dummy, dummy, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     if (do_hop) {
       ptype = NXT_HBH;
@@ -223,7 +227,7 @@ int main(int argc, char *argv[]) {
       if (thc_add_hdr_dst(pkt, &pkt_len, buf3, sizeof(buf3)) < 0)
         return -1;
     }
-    if (thc_add_icmp6(pkt, &pkt_len, ICMP6_NEIGHBORADV, 0, ICMP6_NEIGHBORADV_SOLICIT | ICMP6_NEIGHBORADV_OVERRIDE, dummy, 24, 0) < 0)
+    if (thc_add_icmp6(pkt, &pkt_len, ICMP6_NEIGHBORADV, 0, ICMP6_NEIGHBORADV_SOLICIT | ICMP6_NEIGHBORADV_OVERRIDE | ICMP6_NEIGHBORADV_ROUTER, dummy, 24, 0) < 0)
       return -1;
     if (thc_generate_pkt(interface, ownmac, dummy, pkt, &pkt_len) < 0)
       return -1;
@@ -244,7 +248,7 @@ int main(int argc, char *argv[]) {
       pkt = NULL;
       pkt2_len = pkt_len;
       pkt_len = 0;
-      ipv62->pkt[pkt2_len - 28] = 0x20; // reset SOL flag, OVERRIDE only
+      ipv62->pkt[pkt2_len - 28] = 0xa0; // reset SOL flag, ROUTER+OVERRIDE only
     }
   }
 

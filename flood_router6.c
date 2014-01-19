@@ -33,6 +33,8 @@ int main(int argc, char *argv[]) {
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
+  printf("!\n! Please note: flood_router6 is deprecated, please use flood_router26!\n!\n\n");
+
   while ((i = getopt(argc, argv, "DFHr")) >= 0) {
     switch (i) {
     case 'r':
@@ -103,7 +105,7 @@ int main(int argc, char *argv[]) {
   buf[48] = 1;
   buf[49] = 1;
 
-  printf("Starting to flood network with router advertisements on %s (Press Control-C to end, a dot is printed for every 100 packet):\n", interface);
+  printf("Starting to flood network with router advertisements on %s (Press Control-C to end, a dot is printed for every 1000 packets):\n", interface);
   while (1) {
 
     for (i = 2; i < 6; i++)
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]) {
 
     count++;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     if (do_hop) {
       type = NXT_HBH;
@@ -159,7 +161,7 @@ int main(int argc, char *argv[]) {
 
     pkt = thc_destroy_packet(pkt);
 //    usleep(1);
-    if (count % 100 == 0)
+    if (count % 1000 == 0)
       printf(".");
   }
   return 0;

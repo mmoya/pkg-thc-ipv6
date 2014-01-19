@@ -89,7 +89,7 @@ int sendEchoRequest(char *interface,    // Interface inde se sendrá o pacote
   thc_ipv6_hdr *hdr;            // Estrutura do header IPv6
 
   // cria o 1o pacote para o endereco de multicast
-  if ((pkt1 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt1_len, src6, multicast6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt1_len, src6, multicast6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
 
   // caso tenha sido setado uma rota e adicionado um header de rota

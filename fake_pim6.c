@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   unsigned char *dst6 = NULL, *src6 = NULL, *multicast6, *target6, *neighbor6;
   int pkt1_len = 0, i = 0;
   char *interface;
-  int ttl = 1, mode = -1, wait = 0, loop = 0, len = 0;
+  int ttl = 1, mode = -1, len = 0;
 
   if (argc < 3 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
@@ -76,8 +76,13 @@ int main(int argc, char *argv[]) {
 
   if (dst6 == NULL)
     dst6 = thc_resolve6("ff02::d");
+    
+  if (thc_get_own_ipv6(interface, NULL, PREFER_LINK) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
 
-  if ((pkt1 = thc_create_ipv6(interface, PREFER_LINK, &pkt1_len, src6, dst6, ttl, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt1_len, src6, dst6, ttl, 0, 0, 0, 0)) == NULL)
     return -1;
   memset(buf, 0, sizeof(buf));
 

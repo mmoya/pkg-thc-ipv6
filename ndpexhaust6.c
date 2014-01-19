@@ -43,6 +43,8 @@ int main(int argc, char *argv[]) {
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
 
+  printf("!\n! Please note: ndpexhaust6 is deprecated, please use ndpexhaust26!\n!\n\n");
+
   if (argc < 3 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
@@ -93,7 +95,7 @@ int main(int argc, char *argv[]) {
 
     //  printf("%s\n", ip6adr);
 //  printf("Sending ICMP ECHO to %s\n", ip6adr);
-    if ((pkt = thc_create_ipv6(interface, prefer, &pkt_len, src6, dst6, 64, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, prefer, &pkt_len, src6, dst6, 64, 0, 0, 0, 0)) == NULL)
       errx(EXIT_FAILURE, "THC: Could not create IPv6 packet\n");
     if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, 0xfacebabe, buf, sizeof(buf), 0) == -1)
       errx(EXIT_FAILURE, "THC: Could not add ICMP6 packet contents\n");
@@ -103,7 +105,7 @@ int main(int argc, char *argv[]) {
       printf("!");
     thc_destroy_packet(pkt);
     usleep(1);
-    if (count % 100 == 0)
+    if (count % 1000 == 0)
       printf(".");
   }
 }

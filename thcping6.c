@@ -20,27 +20,36 @@ extern int do_hdr_off;
 extern int do_6in4;
 extern int do_hdr_vlan;
 
-void help(char *prg) {
+void help(char *prg, int help) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-af] [-H o:s:v] [-D o:s:v] [-F dst] [-t ttl] [-c class] [-l label] [-d size] [-S port|-U port] interface src6 dst6 [srcmac [dstmac [data]]]\n\n", prg);
-  printf("Craft your special icmpv6 echo request packet.\n");
-  printf("You can put an \"x\" into src6, srcmac and dstmac for an automatic value.\n");
+  printf("Syntax: %s [-af] [-H t:l:v] [-D t:l:v] [-F dst] [-t ttl] [-c class] [-l label] [-d size] [-S port|-U port|-T type -C code] interface src6 dst6 [srcmac [dstmac [data]]]\n\n", prg);
   printf("Options:\n");
-  printf("  -a              add a hop-by-hop header with router alert option.\n");
-  printf("  -q              add a hop-by-hop header with quickstart option.\n");
-  printf("  -E              send as ethertype IPv4\n");
-  printf("  -H o:s:v        add a hop-by-hop header with special content\n");
-  printf("  -D o:s:v        add a destination header with special content\n");
-  printf("  -D \"xxx\"        add a large destination header which fragments the packet\n");
-  printf("  -f              add a one-shot fragementation header\n");
-  printf("  -F ipv6address  use source routing to this final destination\n");
-  printf("  -t ttl          specify TTL (default: 64)\n");
-  printf("  -c class        specify a class (0-4095)\n");
-  printf("  -l label        specify a label (0-1048575)\n");
-  printf("  -d data_size    define the size of the ping data buffer\n");
+  if (help) {
+    printf("  -a              add a hop-by-hop header with router alert option.\n");
+    printf("  -q              add a hop-by-hop header with quickstart option.\n");
+    printf("  -E              send as ethertype IPv4\n");
+    printf("  -H t:l:v        add a hop-by-hop header with special content\n");
+    printf("  -D t:l:v        add a destination header with special content\n");
+    printf("  -D \"xxx\"        add a large destination header which fragments the packet\n");
+    printf("  -f              add a one-shot fragementation header\n");
+    printf("  -F ipv6address  use source routing to this final destination\n");
+    printf("  -t ttl          specify TTL (default: 255)\n");
+    printf("  -c class        specify a class (0-4095)\n");
+    printf("  -l label        specify a label (0-1048575)\n");
+    printf("  -d data_size    define the size of the ping data buffer\n");
+  }
+  printf("  -T number       ICMPv6 type to send (default: 128 = ping)\n");
+  printf("  -C number       ICMPv6 code to send (default: 0)\n");
   printf("  -S port         use a TCP SYN packet on the defined port instead of ping\n");
   printf("  -U port         use a UDP packet on the defined port instead of ping\n");
-  printf("o:s:v syntax: option-no:size:value, value is in hex, e.g. 1:2:feab\n");
+  printf("  -n count        how often to send the packet (default: 1)\n");
+  if (help) {
+    printf("t:l:v syntax: type:length:value, value is in hex, e.g. 1:2:0eab\n");
+  } else {
+    printf("  -h              show more command line options (help!)\n");
+  }
+  printf("You can put an \"x\" into src6, srcmac and dstmac for an automatic value.\n");
+  printf("\nCraft a ICMPv6/TCP/UDP packet with special IPv6 or EH header options.\n");
   printf("Returns -1 on error or no reply, 0 on normal reply or 1 on error reply.\n");
   exit(-1);
 }
@@ -52,7 +61,8 @@ void alarming() {
 }
 
 void check_packets(u_char *pingdata, const struct pcap_pkthdr *header, const unsigned char *data) {
-  int len = header->caplen - 14, min = 0, usec, ok = 0, nxt = 6, offset = 0;
+  int len = header->caplen - 14, min = 0, ok = 0, nxt = 6, offset = 0;
+  long usec;
   unsigned int mtu = 0;
   unsigned char *ptr = (unsigned char *) (data + 14), *frag = "";
   
@@ -66,9 +76,11 @@ void check_packets(u_char *pingdata, const struct pcap_pkthdr *header, const uns
   clock_gettime(CLOCK_REALTIME, &ts2);
   if (ts2.tv_nsec < ts.tv_nsec) {
     min = 1;
-    usec = (int) ((1000000000 - ts.tv_nsec + ts2.tv_nsec) / 10000);
+    usec = (int) ((1000000000 - ts.tv_nsec + ts2.tv_nsec) / 1000000);
+//    usec = (int) ((1000000000 - ts.tv_nsec + ts2.tv_nsec) / 10000);
   } else
-    usec = (int) ((ts2.tv_nsec - ts.tv_nsec) / 10000);
+    usec = (unsigned long int) ((ts2.tv_nsec - ts.tv_nsec) / 1000000);
+//    usec = (int) ((ts2.tv_nsec - ts.tv_nsec) / 10000);
   if (ptr[nxt] == NXT_FRAG) {
     offset += 8;
     nxt = 40;
@@ -88,7 +100,7 @@ void check_packets(u_char *pingdata, const struct pcap_pkthdr *header, const uns
         ok = 1;
     }
     if (ok) {
-      printf("%04u.%04u \t", (int) (ts2.tv_sec - ts.tv_sec - min), usec);
+      printf("%04u.%03ld \t", (int) (ts2.tv_sec - ts.tv_sec - min), usec);
       switch (ptr[40 + offset]) {
       case ICMP6_PINGREPLY:
         printf("pong");
@@ -123,7 +135,7 @@ void check_packets(u_char *pingdata, const struct pcap_pkthdr *header, const uns
       printf("(ignoring icmp6 packet with different contents (proto %d, type %d, code %d)) ", ptr[nxt], ptr[40 + offset], ptr[41 + offset]);
   } else {
     if (type == NXT_TCP) {
-      printf("%04u.%04u \ttcp-", (int) (ts2.tv_sec - ts.tv_sec - min), usec);
+      printf("%04u.%04ld \ttcp-", (int) (ts2.tv_sec - ts.tv_sec - min), usec);
       switch((ptr[53 + offset] % 8)) {
         case 2:
           if (ptr[53 + offset] >= TCP_ACK) {
@@ -144,7 +156,7 @@ void check_packets(u_char *pingdata, const struct pcap_pkthdr *header, const uns
           break;
       }
     } else
-      printf("%04u.%04u \tudp", (int) (ts2.tv_sec - ts.tv_sec - min), usec);
+      printf("%04u.%04ld \tudp", (int) (ts2.tv_sec - ts.tv_sec - min), usec);
   }
   printf("%s packet received from %s\n", frag, thc_ipv62notation(ptr + 8));
   if (done == 0 && resp_type >= 0) {
@@ -157,16 +169,27 @@ int main(int argc, char *argv[]) {
   unsigned char *pkt1 = NULL, buf[2096] = "thcping6", *routers[2], buf2[1300];
   unsigned char *src6 = NULL, *dst6 = NULL, smac[16] = "", dmac[16] = "", *srcmac = smac, *dstmac = dmac;
   char string[255] = "ip6 and dst ", *interface, *d_opt = NULL, *h_opt = NULL, *oo, *ol, *ov;
-  int pkt1_len = 0, flags = 0, frag = 0, alert = 0, quick = 0, route = 0, ttl = 64, label = 0, class = 0, i, j, k, ether = 0, xl = 0, frag_type = NXT_DST, offset = 14;
+  int pkt1_len = 0, flags = 0, frag = 0, alert = 0, quick = 0, route = 0, ttl = 255, label = 0, class = 0, i, j, k, ether = 0, xl = 0, frag_type = NXT_DST, offset = 14, count = 1, icmptype = ICMP6_PINGREQUEST, icmpcode = 0;
   pcap_t *p;
   thc_ipv6_hdr *hdr;
 
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
 
+  if (argc > 1 && strncmp(argv[1], "-h", 2) == 0)
+    help(argv[0], 1);
+  if (argc < 3)
+    help(argv[0], 0);
+
   memset(buf, 0, sizeof(buf));
-  while ((i = getopt(argc, argv, "aqfd:D:H:F:t:c:l:S:U:EX")) >= 0) {
+  while ((i = getopt(argc, argv, "aqfd:D:H:F:t:c:l:S:U:EXn:T:C:")) >= 0) {
     switch (i) {
+    case 'T':
+      icmptype = atoi(optarg);
+      break;
+    case 'C':
+      icmpcode = atoi(optarg);
+      break;
     case 'X':
       debug = 1;
       break;
@@ -213,6 +236,9 @@ int main(int argc, char *argv[]) {
     case 'l':
       label = atoi(optarg);
       break;
+    case 'n':
+      count = atoi(optarg);
+      break;
     case 'd':
       dlen = atoi(optarg);
       if (dlen > 2096)
@@ -227,7 +253,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (argc - optind < 2)
-    help(argv[0]);
+    help(argv[0], 0);
 
   if (do_hdr_size)
     offset = do_hdr_size;
@@ -235,7 +261,7 @@ int main(int argc, char *argv[]) {
   if (argc - optind == 2) {
     dst6 = thc_resolve6(argv[optind + 1]);
     if ((src6 = thc_get_own_ipv6(interface, dst6, PREFER_GLOBAL)) == NULL) {
-      fprintf(stderr, "Error: no ipv6 address found for interface %s!\n", interface);
+      fprintf(stderr, "Error: no IPv6 address found for interface %s!\n", interface);
       exit(-1);
     }
   } else {
@@ -243,9 +269,13 @@ int main(int argc, char *argv[]) {
     if (strcmp(argv[optind + 1], "x") != 0)
       src6 = thc_resolve6(argv[optind + 1]);
     else if ((src6 = thc_get_own_ipv6(interface, dst6, PREFER_GLOBAL)) == NULL) {
-      fprintf(stderr, "Error: no ipv6 address found for interface %s!\n", interface);
+      fprintf(stderr, "Error: no IPv6 address found for interface %s!\n", interface);
       exit(-1);
     }
+  }
+  if (thc_get_own_ipv6(interface, NULL, PREFER_GLOBAL) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
   }
   
   if (argc - optind >= 4) {
@@ -265,7 +295,7 @@ int main(int argc, char *argv[]) {
   } else
     dstmac = NULL;
 
-  if ((pkt1 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt1_len, src6, dst6, ttl, 0, label, class, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt1_len, src6, dst6, ttl, 0, label, class, 0)) == NULL)
     return -1;
   if (alert || quick) {
     j = 0;
@@ -395,7 +425,7 @@ int main(int argc, char *argv[]) {
     }
   }
   if (port == 0) {
-    if (thc_add_icmp6(pkt1, &pkt1_len, ICMP6_ECHOREQUEST, 0, flags, (unsigned char *) &buf, dlen, 0) < 0)
+    if (thc_add_icmp6(pkt1, &pkt1_len, icmptype, icmpcode, flags, (unsigned char *) &buf, dlen, 0) < 0)
       return -1;
   } else
     if (type == NXT_TCP) {
@@ -439,12 +469,14 @@ int main(int argc, char *argv[]) {
   }
 
   if (xl)
-    thc_send_as_fragment6(interface, src6, dst6, frag_type, hdr->pkt + 40 + offset, hdr->pkt_len - 40 - offset, 1280);
+    for (i = 0; i < count; i++)
+      thc_send_as_fragment6(interface, src6, dst6, frag_type, hdr->pkt + 40 + offset, hdr->pkt_len - 40 - offset, 1280);
   else
-    while (thc_send_pkt(interface, pkt1, &pkt1_len) < 0)
-      usleep(1);
+    for (i = 0; i < count; i++)
+      while (thc_send_pkt(interface, pkt1, &pkt1_len) < 0)
+        usleep(1);
   clock_gettime(CLOCK_REALTIME, &ts);
-  printf("0000.0000 \t%s packet sent to %s\n", port == 0 ? "ping" : type == NXT_TCP ? "tcp-syn" : "udp", thc_ipv62notation(dst6));
+  printf("0000.000 \t%s packet sent to %s\n", port == 0 ? "ping" : type == NXT_TCP ? "tcp-syn" : "udp", thc_ipv62notation(dst6));
   while (1) {
     thc_pcap_check(p, (char *) check_packets, buf);
   }

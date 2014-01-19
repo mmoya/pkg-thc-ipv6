@@ -19,7 +19,7 @@ char *mac6, *ip6;
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s interface ipv6-address [fake-ipv6-address [fake-mac]]\n", prg);
-  printf("Fake DNS server that serves the same ipv6 address to any lookup request\n");
+  printf("Fake DNS server that serves the same IPv6 address to any lookup request\n");
   printf("You can use this together with parasite6 if clients have a fixed DNS server\n");
   printf("Note: very simple server. Does not honor multiple queries in a packet, nor");
   printf("NS, MX, etc. lookups.\n");
@@ -63,7 +63,7 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
   if (src6[0] == 0xff && src6[1] < 16)  // if the original dst is not a multicast address
     src6 = ip6;                 // then use this as a spoofed source
 
-  if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
     return;
   if (thc_add_udp(pkt, &pkt_len, sport, dport, 0, mybuf, plen) < 0)
     return;
@@ -123,14 +123,19 @@ int main(int argc, char *argv[]) {
   else
     ip6 = thc_get_own_ipv6(interface, NULL, PREFER_LINK);
 
+  if (mac6 == NULL || ip6 == NULL) {
+    fprintf(stderr, "Error: invalid interface %s or invalid src mac/IP set\n", interface);
+    exit(-1);
+  }
+
   routerip6 = thc_resolve6(argv[2]);
 
   if (routerip6 == NULL) {
-    fprintf(stderr, "Error: fake ipv6 answer option is invalid: %s\n", argv[2]);
+    fprintf(stderr, "Error: fake IPv6 answer option is invalid: %s\n", argv[2]);
     exit(-1);
   }
   if (ip6 == NULL) {
-    fprintf(stderr, "Error: fake answer ipv6 argument is invalid: %s\n", argv[3]);
+    fprintf(stderr, "Error: fake answer IPv6 argument is invalid: %s\n", argv[3]);
     exit(-1);
   }
   if (mac6 == NULL) {
