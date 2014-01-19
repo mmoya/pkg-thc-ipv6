@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  if ((pkt1 = thc_create_ipv6(interface, PREFER_LINK, &pkt1_len, src6, dst6, ttl, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt1_len, src6, dst6, ttl, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt1, &pkt1_len, mode, wait1 % 256, wait2, (unsigned char *) &buf, 0, 0) < 0)
     return -1;

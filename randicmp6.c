@@ -34,27 +34,36 @@ int main(int argc, char *argv[]) {
   char *interface, string[64];
   unsigned char *pkt = NULL;
   unsigned char *srcmac, *dstmac;       //can define as null to auto generate
-  int type, code, flags = 0, tf = 0, tt = 255, cf = 0, ct = 255;
+  int type, code, flags = 0, tf = 0, tt = 255, cf = 0, ct = 255, print = 1;
   pcap_t *p;
   
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
 
   if (argc < 3) {
-    printf("Syntax: %s [-s sourceip] interface destination [type [code]]\n\n", argv[0]);
+    printf("Syntax: %s [-p] [-s sourceip] interface destination [type [code]]\n\n", argv[0]);
     printf("Sends all ICMPv6 type and code combinations to destination.\n");
-    printf("Option -s  sets the source ipv6 address.\n");
+    printf("Option -s  sets the source IPv6 address.\n");
+    printf("Option -p  will not print answers received.\n");
     exit(0);
   }
   
+  if (strncmp(argv[1], "-p", 2) == 0) {
+    print = 0;
+    argv++; argc--;
+  }
   if (strncmp(argv[1], "-s", 2) == 0) {
     src61 = thc_resolve6(argv[2]);
     argv++; argv++;
     argc--; argc--;
   }
+  if (strncmp(argv[1], "-p", 2) == 0) {
+    print = 0;
+    argv++; argc--;
+  }
 
   interface = argv[1];
-// source and destination ipv6 addresses
+// source and destination IPv6 addresses
   dst61 = thc_resolve6(argv[2]);
   if (src61 == NULL)
     src61 = thc_get_own_ipv6(interface, dst61, PREFER_GLOBAL);
@@ -95,7 +104,7 @@ int main(int argc, char *argv[]) {
     for (code = cf; code <= ct; code++) {
 
 //build the packet
-      if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src61, dst61, 255, 0, 0, 0, 0)) == NULL)
+      if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src61, dst61, 255, 0, 0, 0, 0)) == NULL)
         printf("Packet Creation Failed\n");
 
 //add icmp part
@@ -114,12 +123,16 @@ int main(int argc, char *argv[]) {
       thc_destroy_packet(pkt);  //destroy the packet
       pkt = NULL;
       pkt_len = 0;
-      usleep(10000);
-      while(thc_pcap_check(p, (char *) check_packet, NULL) > 0);
+      if (print) {
+        usleep(10000);
+        while(thc_pcap_check(p, (char *) check_packet, NULL) > 0);
+      }
     }
   }
-  sleep(3);
-  while(thc_pcap_check(p, (char *) check_packet, NULL) > 0);
+  if (print) {
+    sleep(3);
+    while(thc_pcap_check(p, (char *) check_packet, NULL) > 0);
+  }
   printf("Done!\n");
   return 0;
 }

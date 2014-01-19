@@ -20,14 +20,14 @@ thc_ipv6_hdr *frhdr = NULL;
 
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-E type] [-A network/prefix] [-R network/prefix] [-D dns-server] [-s sourceip] [-S sourcemac] [-ardl seconds] [-Tt ms] [-n no] [-i interval] interface\n\n", prg);
+  printf("Syntax: %s [-E type] [-A network/prefix] [-R network/prefix] [-D dns-server] [-s sourceip] [-S sourcemac] [-ardl seconds] [-Tt ms] [-n no] [-i interval] interface [target]\n\n", prg);
   printf("Options:\n");
   printf(" -A network/prefix  add autoconfiguration network (up to %d times)\n", MAX_ENTRIES);
   printf(" -a seconds         valid lifetime of prefix -A (defaults to %d)\n", plife);
   printf(" -R network/prefix  add a route entry (up to %d times)\n", MAX_ENTRIES);
   printf(" -r seconds         route entry lifetime of -R (defaults to %d)\n", rlife);
   printf(" -D dns-server      specify a DNS server (up to %d times)\n", MAX_ENTRIES);
-  printf(" -L searchlist      specify the DNS domain search list, seperate entries with ,\n");
+  printf(" -L searchlist      specify the DNS domain search list, separate entries with ,\n");
   printf(" -d seconds         dns entry lifetime of -D (defaults to %d\n", dlife);
   printf(" -M mtu             the MTU to send, defaults to the interface setting\n");
   printf(" -s sourceip        the source ip of the router, defaults to your link local\n");
@@ -37,7 +37,7 @@ void help(char *prg) {
   printf(" -t ms              retrans timer (defaults to %d)\n", trans);
   printf(" -p priority        priority \"low\", \"medium\", \"high\" (default), \"reserved\"\n");
   printf(" -F flags           Set one or more of the following flags: managed, other,\n");
-  printf("                   homeagent, proxy, reserved; seperate by comma\n");
+  printf("                   homeagent, proxy, reserved; separate by comma\n");
   printf(" -E type            Router Advertisement Guard Evasion option. Types: \n");
   printf("     H             simple hop-by-hop header\n");
   printf("     1             simple one-shot fragmentation header (can add multiple)\n");
@@ -61,7 +61,7 @@ void send_rs_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
   if (ipv6hdr[6] != NXT_ICMP6 || ipv6hdr[40] != ICMP6_ROUTERSOL || header->caplen < 14 + 40 + 2)
     return;
 
-  if ((pkt = thc_create_ipv6(frint, PREFER_LINK, &pkt_len, frip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(frint, PREFER_LINK, &pkt_len, frip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
     return;
   if (do_hop) {
     type = NXT_HBH;
@@ -97,14 +97,13 @@ void send_rs_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
 int main(int argc, char *argv[]) {
   char *interface, mac[16] = "", dmac[16] = "";
   unsigned char *routerip6, *mac6 = NULL, *ip6 = NULL;
-  unsigned char buf[512], *ptr, buf2[6], buf4[6], string[] = "ip6 and icmp6 and dst ff02::2";
+  unsigned char buf[512], *ptr, buf2[6], string[] = "ip6 and icmp6 and dst ff02::2";
   unsigned char rbuf[MAX_ENTRIES + 1][17], pbuf[MAX_ENTRIES + 1][17], *dbuf[MAX_ENTRIES + 1];
   unsigned char *dst = thc_resolve6("ff02::1");
   unsigned char *dstmac = thc_get_multicast_mac(dst);
-  unsigned char *dns = NULL;
   int size, mtu = 0, i, j, k, l, m, n, rcnt = 0, pcnt = 0, dcnt = 0, sent = 0;
-  unsigned char *pkt = NULL, *pkt1, *pkt2, *searchlist = NULL;
-  int pkt_len = 0, pkt_len1, pkt_len2;
+  unsigned char *pkt = NULL, *searchlist = NULL;
+  int pkt_len = 0;
   pcap_t *p;
 
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0)
@@ -313,12 +312,17 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if ((argc - optind) != 1)
+  if ((argc - optind) < 1 || (argc - optind) > 2)
     help(argv[0]);
 
   if (do_hdr_size)
     myoff = do_hdr_size;
   interface = argv[optind];
+  if (argc - optind == 2)
+    if ((dst = thc_resolve6(argv[optind + 1])) == NULL) {
+      fprintf(stderr, "Error: invalid target %s\n", argv[optind + 1]);
+      exit(-1);
+    }
   if (mtu == 0)
     mtu = thc_get_mtu(interface);
   if (mac6 == NULL)
@@ -328,7 +332,7 @@ int main(int argc, char *argv[]) {
     }
   if (ip6 == NULL)
     if ((ip6 = thc_get_own_ipv6(interface, NULL, PREFER_LINK)) == NULL) {
-      fprintf(stderr, "Error: ipv6 is not enabled on interface %s\n", interface);
+      fprintf(stderr, "Error: IPv6 is not enabled on interface %s\n", interface);
       exit(-1);
     }
 //  if (dns == NULL)
@@ -486,7 +490,7 @@ int main(int argc, char *argv[]) {
 
   frbuflen = i;
 
-  if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0xe0, 0)) == NULL)
     return -1;
 
   if (do_hop) {

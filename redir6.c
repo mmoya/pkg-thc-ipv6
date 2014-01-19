@@ -49,6 +49,10 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
+  if (thc_get_own_mac(interface) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   /* Spoof source mac */
   if ((self6 = thc_get_own_ipv6(interface, oldrouter6, PREFER_GLOBAL)) == NULL) {
     fprintf(stderr, "Error: could not get own IP address to contact original-router\n");
@@ -75,7 +79,7 @@ int main(int argc, char *argv[]) {
 
   memset(buf, 'A', 16);
 
-  if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, target6, src6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, target6, src6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, 0xfacebabe, (unsigned char *) &buf, 16, 0) < 0)
     return -1;

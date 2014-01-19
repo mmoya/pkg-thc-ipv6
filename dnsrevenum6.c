@@ -7,7 +7,7 @@
  *                                or 0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
  *
  * (c) 2013 by Marc "van Hauser" Heuse <vh(at)thc.org> or <mh(at)mh-sec.de>
- * The GPL 3 license applies to this code.
+ * The AGPL v3 license applies to this code.
  *
  * Compile: gcc -O2 -o dnsrevenum6 dnsrevenum6.c thc-ipv6-lib.o -lcrypto -lssl -lpcap
  *
@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -23,6 +24,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <signal.h>
+#include <ctype.h>
+#include <string.h>
 #include "thc-ipv6.h"
 
 // do not set below 2
@@ -271,7 +274,7 @@ int main(int argc, char *argv[]) {
   memset(buf_end, 0, sizeof(buf_end));
   
   ok = 1;
-  if ((*ptr != '.') && (index(ptr, '.') != NULL) && ((ptr2 = (unsigned char*)strcasestr(ptr, ".ip6.arpa")) != NULL)) {
+  if ((*ptr != '.') && (index((char*)(uintptr_t)ptr, '.') != NULL) && ((ptr2 = (unsigned char*)(uintptr_t)strcasestr((char*)(uintptr_t)ptr, ".ip6.arpa")) != NULL)) {
     *ptr2 = 0;
     for (i = strlen(ptr) - 1; i >= 0 && ok == 1; i--) {
       if ((ptr[i] >= 'A' && ptr[i] <= 'F') || (ptr[i] >= 'a' && ptr[i] <= 'f') || (ptr[i] >= '0' && ptr[i] <= '9')) {
@@ -312,7 +315,7 @@ int main(int argc, char *argv[]) {
     ok = 0;
   
   if (ok == 0) {
-    fprintf(stderr, "Error: invalid ipv6 address specified: %s\n", argv[2]);
+    fprintf(stderr, "Error: invalid IPv6 address specified: %s\n", argv[2]);
     exit(-1);
   }
   

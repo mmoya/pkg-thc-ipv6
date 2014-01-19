@@ -14,7 +14,7 @@
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-DHF] interface ip-address-solicitated [target-address [mac-address-solicitated [source-ip-address]]]\n\n", prg);
-  printf("Solicate ipv6 address on the network, sending it to the all-nodes multicast address\n");
+  printf("Solicate IPv6 address on the network, sending it to the all-nodes multicast address\n");
 //  printf("Option -H adds a hop-by-hop header, -F a one shot fragment header,\n");
 //  printf("-D adds a large destination header which fragments the packet.\n");
 //  printf("Use -r to use raw mode.\n\n");
@@ -83,7 +83,12 @@ int main(int argc, char *argv[]) {
   if (argc - optind >= 5 && argv[optind + 4] != NULL)
     src6 = thc_resolve6(argv[optind + 4]);
   else
-    src6 = unicast6;
+    src6 = thc_get_own_ipv6(interface, NULL, PREFER_LINK);
+
+  if (mac == NULL || src6 == NULL) {
+    fprintf(stderr, "Error: invalid interface %s or invalid mac/ip defined\n", interface);
+    exit(-1);
+  }
 
   memset(buf, 0, sizeof(buf));
   memcpy(buf, unicast6, 16);
@@ -94,7 +99,7 @@ int main(int argc, char *argv[]) {
   memset(buf2, 0, sizeof(buf2));
   memset(buf3, 0, sizeof(buf3));
 
-  if ((pkt1 = thc_create_ipv6(interface, prefer, &pkt1_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, prefer, &pkt1_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
   if (do_hop) {
     type = NXT_HBH;

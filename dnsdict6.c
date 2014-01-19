@@ -26,7 +26,7 @@
 #include <pthread.h>
 #include <resolv.h>
 #include "thc-ipv6.h"
-#include "dnsdict6.h"           // built-in subdomains list
+#include "dnsdict6.h"            // built-in subdomains list
 
 //#define DEBUG 1
 #define FALSE 0
@@ -39,7 +39,7 @@
 
 char domain[256];
 unsigned short int filtIPcount = 0, milliseconds = 10, ipCount = 0, ipCount4;
-unsigned short int intIPcount = 0, found = 0, txtResults = FALSE, do4 = 0, do6 = 0, dof = 0, dosrv = 0;
+unsigned short int intIPcount = 0, found = 0, txtResults = FALSE, do4 = 0, do6 = 1, dof = 0, dosrv = 0;
 unsigned short int csvResults = FALSE, delay = FALSE, ucount = 0, ucount4 = 0, ucountsrv = 0, ucountsrvs = 0, wcard = 0, wcard4 = 0;
 char wildcardIpStr[MAX_WCARD][INET_ADDRSTRLEN], wildcardIpStr4[MAX_WCARD][16], unique[MAX_UNIQUE][INET_ADDRSTRLEN], unique4[MAX_UNIQUE][16];
 char **sub = (char **) sub_medium, *type = "";
@@ -48,20 +48,18 @@ unsigned short int listptr[MAX_THREADS];
 
 void *help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-d46] [-s|-m|-l|-x] [-t THREADS] [-D] domain [dictionary-file]\n\n", prg);
+  printf("Syntax: %s [-d4] [-s|-m|-l|-x|-u] [-t THREADS] [-D] domain [dictionary-file]\n\n", prg);
   printf("Enumerates a domain for DNS entries, it uses a dictionary file if supplied\n");
   printf("or a built-in list otherwise. This tool is based on dnsmap by gnucitizen.org.\n\n");
   printf("Options:\n");
-  if (do4 && do6 == 0)
-    printf(" -6      also dump IPv6 addresses\n");
-  if (do6 && do4 == 0)
-    printf(" -4      also dump IPv4 addresses\n");
+//  printf(" -6      do NOT dump IPv6 addresses\n");
+  printf(" -4      do also dump IPv4 addresses\n");
   printf(" -t NO   specify the number of threads to use (default: %d, max: %d).\n", DEFAULT_THREADS, MAX_THREADS);
   printf(" -D      dump the selected built-in wordlist, no scanning.\n");
   printf(" -d      display IPv6 information on NS and MX DNS domain information.\n");
   printf(" -S      perform SRV service name guessing\n");
-  printf(" -[smlx] choose the dictionary size by -s(mall=50), -m(edium=796) (DEFAULT)\n");
-  printf("           -l(arge=1416), or -x(treme=3211)\n");
+  printf(" -[smlxu] choose the dictionary size by -s(mall=100), -m(edium=1419) (DEFAULT)\n");
+  printf("           -l(arge=2601), -x(treme=5886) or -u(ber=16724)\n");
   printf("\n");
   exit(-1);
 }
@@ -256,7 +254,7 @@ int isValidDomain(char *d) {
 
 void threaded_resolve(char *list[]) {
   int i = 0, j, k;
-  char dom[MAXSTRSIZE] = "", *foo ="", buf[1024];
+  char dom[MAXSTRSIZE] = "", *foo = "", buf[1024];
   void *addr, *addr4;
   struct addrinfo hints, *res, *p;
   int status, found2;
@@ -360,6 +358,7 @@ void threaded_resolve(char *list[]) {
 
 int dnsquerycode(char *sub, char *domain, int type) {
   char vbuf[256], dom[256];
+
   memset(vbuf, 0, sizeof(vbuf));
   snprintf(dom, sizeof(dom), "%s.%s", sub, domain);
   res_query(dom, ns_c_in, type, vbuf, sizeof(vbuf));
@@ -398,11 +397,11 @@ void threaded_resolve_srv(char *list[]) {
       ucountsrv++;
       for (j = 0; j < cnt && len - (vptr - vbuf) >= 20; j++) {
         vptr += 10;
-        k = vptr[1] + vptr[0]*256;
+        k = vptr[1] + vptr[0] * 256;
         vptr += 2;
-        prio = (unsigned short int*)(vptr);
-        weight = (unsigned short int*)(vptr + 2);
-        port = (unsigned short int*)(vptr + 4);
+        prio = (unsigned short int *) (vptr);
+        weight = (unsigned short int *) (vptr + 2);
+        port = (unsigned short int *) (vptr + 4);
         dbuf[0] = 0;
         dn_expand(vbuf, vbuf + len, vptr + 6, dbuf, sizeof(dbuf));
         if (getaddrinfo(dbuf, NULL, &hints, &res) == 0) {
@@ -411,28 +410,30 @@ void threaded_resolve_srv(char *list[]) {
           found1 = 0;
           found2 = 0;
           for (p = res; p != NULL; p = p->ai_next) {
-            if (do6 && p->ai_family == AF_INET6) {        // IPv6
+            if (do6 && p->ai_family == AF_INET6) {      // IPv6
               ipv6 = (struct sockaddr_in6 *) p->ai_addr;
               addr = &(ipv6->sin6_addr);
               if (q == NULL || memcmp(&ipv6->sin6_addr, &q->sin6_addr, 16) != 0) {
                 q = ipv6;
                 // convert the IP to a string and print it:
                 inet_ntop(p->ai_family, addr, ipv6str, sizeof ipv6str);
-                snprintf(buf, sizeof(buf), "%s => %s is %s port %d %s (prio %d weight %d)\n", dom, dbuf, ipv6str, htons(*port), strcmp(type, "_tcp") == 0 ? "TCP" : "UDP", htons(*prio), htons(*weight));
+                snprintf(buf, sizeof(buf), "%s => %s is %s port %d %s (prio %d weight %d)\n", dom, dbuf, ipv6str, htons(*port), strcmp(type, "_tcp") == 0 ? "TCP" : "UDP",
+                         htons(*prio), htons(*weight));
                 printf("%s", buf);
                 if (found1 == 0) {
                   ++found;
                   found1 = 1;
                 }
               }
-            } else if (do4 && p->ai_family == AF_INET) {  // IPv4
+            } else if (do4 && p->ai_family == AF_INET) {        // IPv4
               ipv4 = (struct sockaddr_in *) p->ai_addr;
               addr4 = &(ipv4->sin_addr);
               if (q4 == NULL || memcmp(&ipv4->sin_addr, &q4->sin_addr, 4) != 0) {
                 q4 = ipv4;
                 // convert the IP to a string and print it:
                 inet_ntop(p->ai_family, addr4, ipv4str, sizeof ipv4str);
-                snprintf(buf, sizeof(buf), "%s => %s is %s port %d %s (prio %d weight %d)\n", dom, dbuf, ipv4str, htons(*port), strcmp(type, "_tcp") == 0 ? "TCP" : "UDP", htons(*prio), htons(*weight));
+                snprintf(buf, sizeof(buf), "%s => %s is %s port %d %s (prio %d weight %d)\n", dom, dbuf, ipv4str, htons(*port), strcmp(type, "_tcp") == 0 ? "TCP" : "UDP",
+                         htons(*prio), htons(*weight));
                 printf("%s", buf);
                 if (found2 == 0) {
                   ++found4;
@@ -443,7 +444,8 @@ void threaded_resolve_srv(char *list[]) {
           }
           freeaddrinfo(res);
         } else {
-          snprintf(buf, sizeof(buf), "%s => %s port %d %s (prio %d weight %d)\n", dom, dbuf, htons(*port), strcmp(type, "_tcp") == 0 ? "TCP" : "UDP", htons(*prio), htons(*weight));
+          snprintf(buf, sizeof(buf), "%s => %s port %d %s (prio %d weight %d)\n", dom, dbuf, htons(*port), strcmp(type, "_tcp") == 0 ? "TCP" : "UDP", htons(*prio),
+                   htons(*weight));
           printf("%s", buf);
         }
         vptr += k;
@@ -460,7 +462,7 @@ void threaded_resolve_srv(char *list[]) {
         vptr = vbuf + strlen(dom) + 17;
         ucountsrv++;
         for (j = 0; j < cnt && len - (vptr - vbuf) >= 20; j++) {
-          k = vptr[11] + vptr[10]*256;
+          k = vptr[11] + vptr[10] * 256;
           if (vptr[2] == 0 && vptr[3] == 0x0c) {
             dbuf[0] = 0;
             dn_expand(vbuf, vbuf + len, vptr + 12, dbuf, sizeof(dbuf));
@@ -470,7 +472,7 @@ void threaded_resolve_srv(char *list[]) {
               found1 = 0;
               found2 = 0;
               for (p = res; p != NULL; p = p->ai_next) {
-                if (do6 && p->ai_family == AF_INET6) {        // IPv6
+                if (do6 && p->ai_family == AF_INET6) {  // IPv6
                   ipv6 = (struct sockaddr_in6 *) p->ai_addr;
                   addr = &(ipv6->sin6_addr);
                   if (q == NULL || memcmp(&ipv6->sin6_addr, &q->sin6_addr, 16) != 0) {
@@ -484,7 +486,7 @@ void threaded_resolve_srv(char *list[]) {
                       found1 = 1;
                     }
                   }
-                } else if (do4 && p->ai_family == AF_INET) {  // IPv4
+                } else if (do4 && p->ai_family == AF_INET) {    // IPv4
                   ipv4 = (struct sockaddr_in *) p->ai_addr;
                   addr4 = &(ipv4->sin_addr);
                   if (q4 == NULL || memcmp(&ipv4->sin_addr, &q4->sin_addr, 4) != 0) {
@@ -512,7 +514,6 @@ void threaded_resolve_srv(char *list[]) {
       }
 //else printf("ptr: %s %d len %d code %d valid\n", dom, len, (vbuf[3] & 15), vbuf[2]);
     }
-
     // user wants delay between DNS requests?
     if (delay)
       dodelay(milliseconds);
@@ -635,22 +636,22 @@ int main(int argc, char *argv[]) {
   do4 = 1;
   do6 = 1;
   if (argv[0] != NULL && argv[0][0] != 0)
-    typ = argv[0][strlen(argv[0]) - 1];
-  if (typ == '4')
+    i = argv[0][strlen(argv[0]) - 1];
+  if (i == '4')
     do6 = 0;
-  if (typ == '6')
+  if (i == '6')
     do4 = 0;
 
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0 || strncmp(argv[1], "--h", 3) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "dt:smlxSD46")) >= 0) {
+  while ((i = getopt(argc, argv, "dt:smlxuSD46")) >= 0) {
     switch (i) {
     case '4':
       do4 = 1;
       break;
     case '6':
-      do6 = 1;
+      do6 = 0;
       break;
     case 'd':
       showdns = 1;
@@ -669,6 +670,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'x':
       sub = (char **) sub_xtreme;
+      break;
+    case 'u':
+      sub = (char **) sub_uber;
       break;
     case 'D':
       dumpit = 1;
@@ -850,7 +854,8 @@ int main(int argc, char *argv[]) {
     threads = wcount;
 
   printf("Starting enumerating %s - creating %d threads for %d words...\n", domain, threads, (int) wcount);
-  printf("Estimated time to completion: %d to %d minute%s\n", (int) ((wcount / 300) / threads) + 1, (int) ((wcount / 90) / threads) + 1, ((wcount / 60) / threads) + 1 > 1 ? "s" : "");
+  printf("Estimated time to completion: %d to %d minute%s\n", (int) ((wcount / 300) / threads) + 1, (int) ((wcount / 90) / threads) + 1,
+         ((wcount / 60) / threads) + 1 > 1 ? "s" : "");
   // wildcard detection
   wildcarDetect(domain);
   for (i = 0; i < threads; i++)

@@ -3,6 +3,8 @@
  *
  * THC IPv6 Attack Library Header Files
  *
+ * License: AGPL v3.0 (see LICENSE file)
+ *
  */
 
 #ifndef _THC_IPV6_H
@@ -10,11 +12,12 @@
 #define _THC_IPV6_H
 
 #include <pcap.h>
+#include <endian.h>
 #ifdef _HAVE_SSL
   #include <openssl/rsa.h>
 #endif
 
-#define VERSION 	"v2.3"
+#define VERSION 	"v2.5"
 #define AUTHOR 		"van Hauser / THC <vh@thc.org>"
 #define RESOURCE	"www.thc.org"
 
@@ -66,6 +69,18 @@
 #define PREFER_LINK	32
 #define PREFER_GLOBAL	 0
 
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  #define _TAKE4 0
+  #define _TAKE3 0
+  #define _TAKE2 0
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  #define _TAKE4 (sizeof(void*) - 4)
+  #define _TAKE3 (sizeof(void*) - 3)
+  #define _TAKE2 (sizeof(void*) - 2)
+#else
+  #error "Unknown Byte Order!"
+#endif
+
 extern int debug;
 extern int _thc_ipv6_showerrors;
 extern int do_hdr_size;
@@ -98,7 +113,8 @@ extern int thc_redir6(char *interface, unsigned char *src, unsigned char *srcmac
 extern int thc_send_as_fragment6(char *interface, unsigned char *src, unsigned char *dst, unsigned char type, unsigned char *data, int data_len, int frag_len);
 extern int thc_send_as_overlapping_first_fragment6(char *interface, unsigned char *src, unsigned char *dst, unsigned char type, unsigned char *data, int data_len, int frag_len, int overlap_spoof_type);
 extern int thc_send_as_overlapping_last_fragment6(char *interface, unsigned char *src, unsigned char *dst, unsigned char type, unsigned char *data, int data_len, int frag_len, int overlap_spoof_type);
-extern unsigned char *thc_create_ipv6(char *interface, int prefer, int *pkt_len, unsigned char *src, unsigned char *dst, int ttl, int length, int label, int class, int version);
+extern unsigned char *thc_create_ipv6(char *interface, int *pkt_len, unsigned char *src, unsigned char *dst);
+extern unsigned char *thc_create_ipv6_extended(char *interface, int prefer, int *pkt_len, unsigned char *src, unsigned char *dst, int ttl, int length, int label, int class, int version);
 extern int thc_add_hdr_misc(unsigned char *pkt, int *pkt_len, unsigned char type, int len, unsigned char *buf, int buflen);
 extern int thc_add_hdr_route(unsigned char *pkt, int *pkt_len, unsigned char **routers, unsigned char routerptr);
 extern int thc_add_hdr_mobileroute(unsigned char *pkt, int *pkt_len, unsigned char *dst);
@@ -108,8 +124,12 @@ extern int thc_add_hdr_dst(unsigned char *pkt, int *pkt_len, unsigned char *buf,
 extern int thc_add_hdr_hopbyhop(unsigned char *pkt, int *pkt_len, unsigned char *buf, int buflen);
 extern int thc_add_hdr_nonxt(unsigned char *pkt, int *pkt_len, int hdropt);
 extern int thc_add_icmp6(unsigned char *pkt, int *pkt_len, int type, int code, unsigned int flags, unsigned char *data, int data_len, int checksum);
+extern int thc_add_pim(unsigned char *pkt, int *pkt_len, unsigned char type, unsigned char *data, int data_len);
 extern int thc_add_tcp(unsigned char *pkt, int *pkt_len, unsigned short int sport, unsigned short int dport, unsigned int sequence, unsigned int ack, unsigned char flags, unsigned short int window, unsigned short int urgent, char *option, int option_len, char *data, int data_len);
 extern int thc_add_udp(unsigned char *pkt, int *pkt_len, unsigned short int sport, unsigned short int dport, unsigned int checksum, char *data, int data_len);
+extern int thc_add_ipv4(unsigned char *pkt, int *pkt_len, int src, int dst);
+extern int thc_add_ipv4_extended(unsigned char *pkt, int *pkt_len, int src, int dst, unsigned char tos, int id, unsigned char ttl);
+extern int thc_add_ipv4_rudimentary(unsigned char *pkt, int *pkt_len, int src, int dst, int port);
 extern int thc_add_data6(unsigned char *pkt, int *pkt_len, unsigned char type, unsigned char *data, int data_len);
 extern int thc_generate_and_send_pkt(char *interface, unsigned char *srcmac, unsigned char *dstmac, unsigned char *pkt, int *pkt_len);
 extern int thc_generate_pkt(char *interface, unsigned char *srcmac, unsigned char *dstmac, unsigned char *pkt, int *pkt_len);
@@ -132,6 +152,7 @@ extern int thc_bind_multicast_to_socket(int s, char *interface, char *src);
 #define DO_CHECKSUM 0xfaf4
 
 #define NXT_IP6 41
+#define NXT_IPV6 41
 #define NXT_INVALID 128
 #define NXT_IGNORE 31
 #define NXT_HDR 0
@@ -155,6 +176,12 @@ extern int thc_bind_multicast_to_socket(int s, char *interface, char *src);
 #define NXT_HOSTIDENTIFICATION 139
 #define NXT_SHIM 140
 #define NXT_SHIM6 140
+#define NXT_IP4 4
+#define NXT_IPV4 4
+#define NXT_IP4_RUDIMENTARY 0xf4
+#define NXT_IPV4_RUDIMENTARY 0xf4
+#define NXT_IPIP 4
+#define NXT_ICMP4 1
 
 #define IPV6_FRAME_TYPE 0x86dd
 
@@ -233,6 +260,19 @@ typedef struct {
   unsigned char *data;
   int data_len;
 } thc_udp_hdr;
+
+typedef struct {
+  unsigned char ver_hlen;
+  unsigned char tos;
+  unsigned short int size;
+  unsigned short int id;
+  unsigned short int frag;
+  unsigned char ttl;
+  unsigned char proto;
+  unsigned short int checksum;
+  unsigned int src;
+  unsigned int dst;
+} thc_ipv4_hdr;
 
 typedef struct {
   char *next_segment;

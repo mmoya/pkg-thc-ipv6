@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  if ((pkt1 = thc_create_ipv6(interface, PREFER_LINK, &pkt1_len, src6, dst6, ttl, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt1_len, src6, dst6, ttl, 0, 0, 0, 0)) == NULL)
     return -1;
   memset(buf, 0, sizeof(buf));
   buf[0] = 5;

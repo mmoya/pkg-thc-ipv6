@@ -10,16 +10,18 @@
 #include <pcap.h>
 #include "thc-ipv6.h"
 
+#define MAX_SEEN 255
+
 char *frbuf, *frbuf2, *frint, buf3[1504];
 int frbuflen, frbuf2len, do_hop = 0, do_frag = 0, do_dst = 0, type = NXT_ICMP6, seen_cnt = 0;
 unsigned char *frip6, *frmac, *frdst;
 thc_ipv6_hdr *frhdr = NULL;
-char seen[256][16];
+char seen[MAX_SEEN + 1][16];
 extern int do_hdr_size;
 
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s interface\n\n", prg);
+  printf("Syntax: %s interface [target]\n\n", prg);
   printf("Dumps all local routers and their information\n\n");
 //  printf("Use -r to use raw mode.\n\n");
   exit(-1);
@@ -44,7 +46,8 @@ void dump_ra_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
       if (memcmp(seen[i], ipv6hdr + 8, 16) == 0)
         return;
   }
-  memcpy(seen[seen_cnt++], ipv6hdr + 8, 16);
+  if (seen_cnt <= MAX_SEEN)
+    memcpy(seen[seen_cnt++], ipv6hdr + 8, 16);
 
   printf("Router: %s (MAC: %02x:%02x:%02x:%02x:%02x:%02x)\n", thc_ipv62notation(ipv6hdr + 8), data[6], data[7], data[8], data[9], data[10], data[11]);
   printf("  Priority: ");
@@ -63,7 +66,7 @@ void dump_ra_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
     printf("low\n");
     break;
   }
-  printf("  TTL: %d\n", ipv6hdr[44]);
+  printf("  Hop Count: %d\n", ipv6hdr[44]);
   printf("  Lifetime: %d, Reachable: %u, Retrans: %u\n", (ipv6hdr[46] << 8) + ipv6hdr[47], (ipv6hdr[48] << 24) + (ipv6hdr[49] << 16) + (ipv6hdr[50] << 8) + ipv6hdr[51],
          (ipv6hdr[52] << 24) + (ipv6hdr[53] << 16) + (ipv6hdr[54] << 8) + ipv6hdr[55]);
   printf("  Flags: ");
@@ -128,7 +131,7 @@ void dump_ra_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
       if (ptr[1] != 3)
         printf("    Route: illegal\n");
       else {
-        printf("    Route: %s/%d (Lifetime: %u)\n", thc_ipv62notation(ptr + 8), ptr[2], (ptr[4] << 24) + (ptr[5] << 16) + (ptr[6] << 8) + ptr[7],
+        printf("    Route: %s/%d (Lifetime: %u/%u)\n", thc_ipv62notation(ptr + 8), ptr[2], (ptr[4] << 24) + (ptr[5] << 16) + (ptr[6] << 8) + ptr[7],
                (ptr[8] << 24) + (ptr[9] << 16) + (ptr[10] << 8) + ptr[11]);
         printf("      Priority:");
         k = ptr[3] & 24;
@@ -161,7 +164,7 @@ void dump_ra_reply(u_char *foo, const struct pcap_pkthdr *header, const unsigned
       if (ptr[1] != 3)
         printf("    DNS: illegal\n");
       else {
-        printf("    DNS: %s (Lifetime: %u)\n", thc_ipv62notation(ptr + 8), (ptr[4] << 24) + (ptr[5] << 16) + (ptr[6] << 8) + ptr[7],
+        printf("    DNS: %s (Lifetime: %u/%u)\n", thc_ipv62notation(ptr + 8), (ptr[4] << 24) + (ptr[5] << 16) + (ptr[6] << 8) + ptr[7],
                (ptr[8] << 24) + (ptr[9] << 16) + (ptr[10] << 8) + ptr[11]);
       }
       break;
@@ -189,7 +192,7 @@ int main(int argc, char *argv[]) {
   int rawmode = 0;
   pcap_t *p;
 
-  if (argc != 2 || strncmp(argv[1], "-h", 2) == 0)
+  if (argc < 2 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
   while ((i = getopt(argc, argv, "r")) >= 0) {
@@ -205,7 +208,12 @@ int main(int argc, char *argv[]) {
   }
 
   interface = argv[optind];
-  mac6 = thc_get_own_mac(interface);
+  if ((mac6 = thc_get_own_mac(interface)) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
+  if (argc - optind > 1 && argv[optind + 1] != NULL)
+    dst = thc_resolve6(argv[optind + 1]);
 
   memset(buf, 0, sizeof(buf));
   buf[0] = 1;
@@ -219,7 +227,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, NULL, dst, 255, 0, 0, 0xe0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, NULL, dst, 255, 0, 0, 0xe0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_ROUTERSOL, 0, 0, buf, i, 0) < 0)
     return -1;

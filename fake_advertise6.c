@@ -13,9 +13,9 @@
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-DHF] [-Ors] [-n count] [-w seconds] interface ip-address-advertised [target-address [mac-address-advertised [source-ip-address]]]\n\n", prg);
-  printf("Advertise ipv6 address on the network (with own mac if not specified),\n");
+  printf("Advertise IPv6 address on the network (with own mac if not specified),\n");
   printf("sending it to the all-nodes multicast address if no target address is set.\n");
-  printf("Source ip addresss is the address advertised if not set.\n\n");
+  printf("Source ip address is the address advertised if not set.\n\n");
   printf("Sending options:\n");
   printf("  -n count    send how many packets (default: forever)\n");
   printf("  -w seconds  wait time between the packets sent (default: 5)\n");
@@ -84,6 +84,10 @@ int main(int argc, char *argv[]) {
     offset = do_hdr_size;
 
   interface = argv[optind];
+  if (thc_get_own_mac(interface) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   if ((unicast6 = thc_resolve6(argv[optind + 1])) == NULL) {
     fprintf(stderr, "Error: %s does not resolve to a valid IPv6 address\n", argv[optind + 1]);
     exit(-1);
@@ -114,7 +118,7 @@ int main(int argc, char *argv[]) {
   memset(buf2, 0, sizeof(buf2));
   memset(buf3, 0, sizeof(buf3));
 
-  if ((pkt1 = thc_create_ipv6(interface, prefer, &pkt1_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, prefer, &pkt1_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
   if (do_hop) {
     type = NXT_HBH;
@@ -140,7 +144,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Error: Can not generate packet, exiting ...\n");
     exit(-1);
   }
-  if ((pkt2 = thc_create_ipv6(interface, prefer, &pkt2_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt2 = thc_create_ipv6_extended(interface, prefer, &pkt2_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
   if (do_hop)
     if (thc_add_hdr_hopbyhop(pkt2, &pkt2_len, buf2, sizeof(buf2)) < 0)

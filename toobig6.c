@@ -47,10 +47,10 @@ int main(int argc, char *argv[]) {
   if (do_hdr_size)
     offset = do_hdr_size;
 
-//  if (mtu < 1 || mtu > 65530) {
-//    fprintf(stderr, "Error: mtu size invalid\n");
-//    exit(-1);
-//  }
+  if (rmtu < 1280 || rmtu > 65530) {
+    fprintf(stderr, "Error: mtu size invalid on interface %s\n", interface);
+    exit(-1);
+  }
 
   if (argc > 5)
     ttl = atoi(argv[5]);
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     buf_len = rmtu - 48;
     
   memset(buf, 'A', sizeof(buf));
-  if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, target6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, target6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, 0xfacebabe, (unsigned char *) &buf, buf_len, 0) < 0)
     return -1;

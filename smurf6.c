@@ -37,6 +37,10 @@ int main(int argc, char *argv[]) {
   }
 
   interface = argv[1];
+  if (thc_get_own_ipv6(interface, NULL, PREFER_GLOBAL) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   victim6 = thc_resolve6(argv[2]);
   if (argv[3] != NULL)
     multicast6 = thc_resolve6(argv[3]);
@@ -44,7 +48,7 @@ int main(int argc, char *argv[]) {
     multicast6 = thc_resolve6("ff02::1");
 
   memset(buf, 'A', 16);
-  if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, victim6, multicast6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, victim6, multicast6, 0, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, 0xfacebabe, (unsigned char *) &buf, 16, 0) < 0)
     return -1;

@@ -49,6 +49,11 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "ERROR: Can not resolve mac address for %s\n", argv[2]);
     exit(-1);
   }
+  
+  if (thc_get_own_ipv6(interface, NULL, PREFER_GLOBAL) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
 
   for (i = 0; i < 4; i++) {
     memset(buf, 0, sizeof(buf));
@@ -59,7 +64,7 @@ int main(int argc, char *argv[]) {
     memcpy(&buf[6], h, 16);
     buf_len = 22;
 
-    if ((pkt1 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt1_len, coa, ha, 64, 0, 0, 0, 0)) == NULL)
+    if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt1_len, coa, ha, 64, 0, 0, 0, 0)) == NULL)
       return -1;
     hdr = (thc_ipv6_hdr *) pkt1;
     hdr->original_src = h;

@@ -23,16 +23,16 @@ extern int do_hdr_off;
 int sports[] = { 20, 21, 22, 25, 53, 80, 111, 123, 179, 443, 8080, -1 } ;
 int sports2[] = { 20, 53, 67, 68, 69, 111, 123, 161, 162, 2049, -1 } ;
 
-int matched = 0, port = -1, udp = 0, sport = 21000, cport, count = 0, poffset, poffset2, ptype, only = 0, pingtest = 0;
+int matched = 0, port = -1, udp = 0, sport = 21000, cport, count = 0, poffset, poffset2, ptype, only = 0, pingtest = 0, do_hop = 0;
 unsigned char *dst, *psrc, is_srcport = 0;
 pcap_t *p;
 
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-u] interface destination port [test-case-no]\n\n", prg);
+  printf("Syntax: %s [-Hu] interface destination port [test-case-no]\n\n", prg);
   printf("Performs various ACL bypass attempts to check implementations.\n");
-  printf("Defaults to TCP ports, option -u switches to UDP.\n");
-  printf("For all test cases to work, ICMPv6 ping to thhe destination must be allowed.\n");
+  printf("Defaults to TCP ports, option -u switches to UDP.\nOption -H prints the hop count.\n");
+  printf("For all test cases to work, ICMPv6 ping to the destination must be allowed.\n");
   exit(-1);
 }
 
@@ -64,6 +64,8 @@ void check_packet(u_char *foo, const struct pcap_pkthdr *header, const unsigned 
     rdport = ptr[42 + offset] * 256 + ptr[43 + offset];
 //printf("rsport: %d, rdport: %d, sport %d, port %d, count %d\n", rsport, rdport, sport, port, count);
     if ((is_srcport == 1 || rdport == sport + count) && rsport == port) {
+      if (do_hop)
+        printf("[%d] ", ptr[7]);
       printf("TCP");
       if ((ptr[53 + offset] & 1) > 0)
         printf("-FIN");
@@ -80,8 +82,11 @@ void check_packet(u_char *foo, const struct pcap_pkthdr *header, const unsigned 
   if (udp == 1 && ptr[nxt] == NXT_UDP && memcmp(dst, ptr + 8, 16) == 0 && len >= 48 + offset) {
     rsport = ptr[40 + offset] * 256 + ptr[41 + offset];
     rdport = ptr[42 + offset] * 256 + ptr[43 + offset];
-    if ((is_srcport == 1 || rdport == sport + count) && rsport == port)
+    if ((is_srcport == 1 || rdport == sport + count) && rsport == port) {
+      if (do_hop)
+        printf("[%d] ", ptr[7]);
       printf("UDP received\n");
+    }
   }
   if (ptr[nxt] == NXT_ICMP6 && (ptr[40 + offset] == ICMP6_UNREACH || ptr[40 + offset] == ICMP6_PARAMPROB) && len >= 96 + poffset + offset) {
     if (memcmp(dst, ptr + 72 + offset, 16) != 0)
@@ -108,6 +113,8 @@ void check_packet(u_char *foo, const struct pcap_pkthdr *header, const unsigned 
     rdport = ptr[90 + poffset + offset] * 256 + ptr[91 + poffset + offset];
     if ((ptype == NXT_FRAG && poffset == 0) || ((rsport == sport + count || is_srcport == 1) && rdport == port)) {
       matched = 1;
+      if (do_hop)
+        printf("[%d] ", ptr[7]);
       printf("ICMPv6 ");
       if (ptr[40 + offset] == ICMP6_PARAMPROB) {
         printf("Parameter Problem received\n");
@@ -143,6 +150,8 @@ void check_packet(u_char *foo, const struct pcap_pkthdr *header, const unsigned 
   } else
     if (ptr[nxt] == NXT_ICMP6 && ptr[40 + offset] == ICMP6_ECHOREPLY && pingtest) {
       matched = 1;
+      if (do_hop)
+        printf("[%d] ", ptr[7]);
       printf("ICMPv6 Echo Reply");
     }
 }
@@ -177,8 +186,8 @@ int main(int argc, char *argv[]) {
   int i, curr = 0;
   unsigned char buf[3000], ch;
   unsigned char *src, string[64] = "ip6 and not src ";
-  unsigned char *srcmac = NULL, *dstmac = NULL, null_buffer[6];
-  thc_ipv6_hdr *hdr, *hdr2, *hdr3;
+  unsigned char *srcmac = NULL, *dstmac = NULL;
+  thc_ipv6_hdr *hdr, *hdr3;
   int offset = 14;
   unsigned char *pkt = NULL, *pkt2 = NULL, *pkt3 = NULL;
   int pkt_len = 0, pkt_len2 = 0, pkt_len3 = 0;
@@ -187,10 +196,13 @@ int main(int argc, char *argv[]) {
   if (argc < 3 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "u")) >= 0) {
+  while ((i = getopt(argc, argv, "uH")) >= 0) {
     switch (i) {
     case 'u':
       udp = 1;
+      break;
+    case 'H':
+      do_hop = 1;
       break;
     default:
       fprintf(stderr, "Error: invalid option -%c\n", i);
@@ -211,7 +223,10 @@ int main(int argc, char *argv[]) {
   if (argc - optind > 3 && argv[optind + 3] != NULL)
     only = atoi(argv[optind + 3]);
 
-  src = thc_get_own_ipv6(interface, dst, PREFER_GLOBAL);
+  if ((src = thc_get_own_ipv6(interface, dst, PREFER_GLOBAL)) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   srcmac = thc_get_own_mac(interface);
   if ((dstmac = thc_get_mac(interface, src, dst)) == NULL) {
     fprintf(stderr, "ERROR: Can not resolve mac address for %s\n", argv[2]);
@@ -240,7 +255,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: plain sending\t\t\t", count);
     poffset = 0;
     ptype = -1;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, NULL, 0) == -1)
@@ -265,7 +280,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: plain sending with data\t", count);
     poffset = 0;
     ptype = -1;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 1000) == -1)
@@ -290,7 +305,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: IPv4 ethernet type\t\t", count);
     poffset = 0;
     ptype = -1;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, NULL, 0) == -1)
@@ -333,7 +348,7 @@ int main(int argc, char *argv[]) {
     poffset = 8;
     ptype = NXT_HBH;
     poffset2 = 34;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, 6);
     if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf, 6) == -1)
@@ -362,7 +377,7 @@ int main(int argc, char *argv[]) {
     poffset = 8;
     ptype = NXT_DST;
     poffset2 = 34;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, 6);
     if (thc_add_hdr_dst(pkt, &pkt_len, buf, 6) == -1)
@@ -391,7 +406,7 @@ int main(int argc, char *argv[]) {
     poffset = 8;
     ptype = NXT_HBH;
     poffset2 = 34;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, 6);
     buf[0] = 5;
@@ -422,7 +437,7 @@ int main(int argc, char *argv[]) {
     poffset = 3 * 8;
     ptype = NXT_DST;
     poffset2 = 34 + 2*8;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, 6);
     for (i = 0; i < 3; i++)
@@ -452,7 +467,7 @@ int main(int argc, char *argv[]) {
     poffset = 130 * 8;
     ptype = NXT_DST;
     poffset2 = 34 + 129 * 8;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, 6);
     for (i = 0; i < 130; i++)
@@ -482,7 +497,7 @@ int main(int argc, char *argv[]) {
     poffset = 8;
     ptype = NXT_FRAG;
     poffset2 = 34;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) == -1)
       return -1;
@@ -510,7 +525,7 @@ int main(int argc, char *argv[]) {
     poffset = 2 * 8;
     ptype = NXT_FRAG;
     poffset2 = 34 + 1*8;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     for (i = 0; i < 2; i++)
       if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) == -1)
@@ -539,7 +554,7 @@ int main(int argc, char *argv[]) {
     poffset = 2 * 8;
     ptype = NXT_FRAG;
     poffset2 = 34 + 1*8;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     for (i = 0; i < 2; i++)
       if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count*512 + i) == -1)
@@ -568,7 +583,7 @@ int main(int argc, char *argv[]) {
     poffset = 3 * 8;
     ptype = NXT_FRAG;
     poffset2 = 34 + 2*8;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     for (i = 0; i < 3; i++)
       if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) == -1)
@@ -597,7 +612,7 @@ int main(int argc, char *argv[]) {
     poffset = 3 * 8;
     ptype = NXT_FRAG;
     poffset2 = 34 + 2*8;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     for (i = 0; i < 3; i++)
       if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count*512 + i) == -1)
@@ -625,7 +640,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 130x atomic fragment (same id)\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     for (i = 0; i < 130; i++)
       if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) == -1)
@@ -653,7 +668,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 130x atomic fragment (diff id)\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     for (i = 0; i < 130; i++)
       if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count*512 + i) == -1)
@@ -681,7 +696,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 260x atomic fragment (same id)\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     for (i = 0; i < 260; i++)
       if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) == -1)
@@ -708,7 +723,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 260x atomic fragment (diff id)\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     for (i = 0; i < 260; i++)
       if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count*512 + i) == -1)
@@ -735,7 +750,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 2kb dst hdr\t\t\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_dst(pkt, &pkt_len, buf, 2040 - 2) == -1)
@@ -762,7 +777,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 2kb dst + dst hdr\t\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_dst(pkt, &pkt_len, buf, 2040 - 2) == -1)
@@ -791,7 +806,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 32x 2kb dst hdr\t\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     for (i = 0; i < 32; i++)
@@ -819,7 +834,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 2x dst hdr + 2x frag\t\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_dst(pkt, &pkt_len, buf, 2040 - 2) == -1)
@@ -850,7 +865,7 @@ int main(int argc, char *argv[]) {
     printf("Test %2d: 4x dst hdr + 3x frag\t\t", count);
     poffset = 0;
     ptype = NXT_FRAG;
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_dst(pkt, &pkt_len, buf, 2040 - 2) == -1)
@@ -888,7 +903,7 @@ int main(int argc, char *argv[]) {
     poffset = 0;
     ptype = NXT_FRAG;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
@@ -902,7 +917,7 @@ int main(int argc, char *argv[]) {
     hdr = (thc_ipv6_hdr *) pkt;
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 0, 1, sport + count) == -1)
       return -1;
@@ -912,7 +927,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 1232 / 8, 1, sport + count) == -1)
       return -1;
@@ -922,7 +937,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 2464 / 8, 0, sport + count) == -1)
       return -1;
@@ -943,7 +958,7 @@ int main(int argc, char *argv[]) {
     poffset = 0;
     ptype = NXT_FRAG;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
@@ -957,7 +972,7 @@ int main(int argc, char *argv[]) {
     hdr = (thc_ipv6_hdr *) pkt;
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 1232 / 8, 1, sport + count) == -1)
       return -1;
@@ -967,7 +982,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 0, 1, sport + count) == -1)
       return -1;
@@ -977,7 +992,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 2464 / 8, 0, sport + count) == -1)
       return -1;
@@ -998,7 +1013,7 @@ int main(int argc, char *argv[]) {
     poffset = 0;
     ptype = NXT_FRAG;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
@@ -1024,7 +1039,7 @@ int main(int argc, char *argv[]) {
   if (only == ++count || only == 0) {
     printf("Test %2d: frag type first #3 (resend#2)\t", count);
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 1, sport + count) < 0)
       return -1;
@@ -1034,7 +1049,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt = thc_destroy_packet(pkt);
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) < 0)
       return -1;
@@ -1060,7 +1075,7 @@ int main(int argc, char *argv[]) {
     poffset = 0;
     ptype = NXT_FRAG;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 1, sport + count) < 0)
       return -1;
@@ -1070,7 +1085,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt = thc_destroy_packet(pkt);
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 0, sport + count) < 0)
       return -1;
@@ -1096,7 +1111,7 @@ int main(int argc, char *argv[]) {
     poffset = 0;
     ptype = NXT_FRAG;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
@@ -1110,7 +1125,7 @@ int main(int argc, char *argv[]) {
     hdr = (thc_ipv6_hdr *) pkt;
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 0, 1, sport + count) == -1)
       return -1;
@@ -1120,7 +1135,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 1232 / 8, 1, sport + count) == -1)
       return -1;
@@ -1130,7 +1145,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 2464 / 8, 0, sport + count) == -1)
       return -1;
@@ -1151,7 +1166,7 @@ int main(int argc, char *argv[]) {
     poffset = 0;
     ptype = NXT_FRAG;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
@@ -1165,7 +1180,7 @@ int main(int argc, char *argv[]) {
     hdr = (thc_ipv6_hdr *) pkt;
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 1232 / 8, 1, sport + count) == -1)
       return -1;
@@ -1175,7 +1190,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 0, 1, sport + count) == -1)
       return -1;
@@ -1185,7 +1200,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 2464 / 8, 0, sport + count) == -1)
       return -1;
@@ -1206,7 +1221,7 @@ int main(int argc, char *argv[]) {
     poffset = 0;
     ptype = NXT_FRAG;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
@@ -1220,7 +1235,7 @@ int main(int argc, char *argv[]) {
     hdr = (thc_ipv6_hdr *) pkt;
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 0, 1, sport + count) == -1)
       return -1;
@@ -1230,7 +1245,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 1232 / 8, 1, sport + count) == -1)
       return -1;
@@ -1240,7 +1255,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt2, &pkt_len2, 2464 / 8, 0, sport + count) == -1)
       return -1;
@@ -1261,7 +1276,7 @@ int main(int argc, char *argv[]) {
     poffset = 0;
     ptype = NXT_FRAG;
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (udp == 0) {
       if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 2500) == -1)
@@ -1290,7 +1305,7 @@ int main(int argc, char *argv[]) {
     ptype = NXT_FRAG;
     memset(buf, 0, 1024);
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf, 14) == -1)
       return -1;
@@ -1307,7 +1322,7 @@ int main(int argc, char *argv[]) {
       return -1;
     hdr = (thc_ipv6_hdr *) pkt;
 
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt3, &pkt_len3, buf, 14) == -1)
       return -1;
@@ -1321,7 +1336,7 @@ int main(int argc, char *argv[]) {
 
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1333,7 +1348,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1345,7 +1360,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1372,7 +1387,7 @@ int main(int argc, char *argv[]) {
     ptype = NXT_FRAG;
     memset(buf, 0, 1024);
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf, 14) == -1)
       return -1;
@@ -1389,7 +1404,7 @@ int main(int argc, char *argv[]) {
       return -1;
     hdr = (thc_ipv6_hdr *) pkt;
 
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt3, &pkt_len3, buf, 14) == -1)
       return -1;
@@ -1403,7 +1418,7 @@ int main(int argc, char *argv[]) {
 
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1415,7 +1430,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1427,7 +1442,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1454,7 +1469,7 @@ int main(int argc, char *argv[]) {
     ptype = NXT_FRAG;
     memset(buf, 0, 1024);
 
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf, 14) == -1)
       return -1;
@@ -1471,7 +1486,7 @@ int main(int argc, char *argv[]) {
       return -1;
     hdr = (thc_ipv6_hdr *) pkt;
 
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt3, &pkt_len3, buf, 14) == -1)
       return -1;
@@ -1485,7 +1500,7 @@ int main(int argc, char *argv[]) {
 
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1497,7 +1512,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1509,7 +1524,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1521,7 +1536,7 @@ int main(int argc, char *argv[]) {
       return -1;
     pkt2 = thc_destroy_packet(pkt2);
 
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 512 - 2) == -1)
       return -1;
@@ -1545,7 +1560,7 @@ int main(int argc, char *argv[]) {
   if (only == ++count || only == 0) {
     printf("Test %2d: Bad TLV handling\t\t", count);
     memset(buf, 0, sizeof(buf));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf, 6) == -1)
       return -1;
@@ -1554,7 +1569,7 @@ int main(int argc, char *argv[]) {
     if (thc_add_hdr_dst(pkt, &pkt_len, buf, 6) == -1)
       return -1;
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_hopbyhop(pkt2, &pkt_len2, buf, 6) == -1)
@@ -1592,7 +1607,7 @@ int main(int argc, char *argv[]) {
   if (only == ++count || only == 0) {
     printf("Test %2d: Bad TLV handling #2\t\t", count);
     memset(buf, 0, sizeof(buf));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     buf[0] = 1; // T
     buf[1] = 12; // L
@@ -1607,7 +1622,7 @@ int main(int argc, char *argv[]) {
     if (thc_add_hdr_dst(pkt, &pkt_len, buf, 14) == -1)
       return -1;
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_tcp(pkt2, &pkt_len2, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, NULL, 0) == -1)
       return -1;
@@ -1638,7 +1653,7 @@ int main(int argc, char *argv[]) {
   if (only == ++count || only == 0) {
     printf("Test %2d: Bad TLV handling #2 reverse\t", count);
     memset(buf, 0, sizeof(buf));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     buf[0] = 1; // T
     buf[1] = 12; // L
@@ -1653,7 +1668,7 @@ int main(int argc, char *argv[]) {
     if (thc_add_hdr_dst(pkt, &pkt_len, buf, 14) == -1)
       return -1;
     
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src, dst, 64, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_icmp6(pkt2, &pkt_len2, ICMP6_ECHOREQUEST, 0, count, NULL, 0, 0) == -1)
       return -1;
@@ -1691,7 +1706,7 @@ int main(int argc, char *argv[]) {
         printf("Test %2d%c: plain with srcport %d \t", count, ch++, sports[i]);
         poffset = 0;
         ptype = -1;
-        if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+        if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
           return -1;
         if (thc_add_tcp(pkt, &pkt_len, sports[i], port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, buf, 0) == -1)
           return -1;
@@ -1708,10 +1723,10 @@ int main(int argc, char *argv[]) {
       }
     } else {
       while (sports2[i] != -1) {
-        printf("Test %2d%c: plain with srcport %d \t", count, ch++, sports[i]);
+        printf("Test %2d%c: plain with srcport %d \t", count, ch++, sports2[i]);
         poffset = 0;
         ptype = -1;
-        if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
+        if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 0)) == NULL)
           return -1;
         if (thc_add_udp(pkt, &pkt_len, sports2[i], port, 0, buf, 1000) == -1)
           return -1;

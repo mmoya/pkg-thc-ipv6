@@ -9,6 +9,12 @@ int main() {
   return -1;
 }
 #else
+#if (_TAKE2 > 0)
+int main() {
+  fprintf(stderr, "Error: tool does not work on big endian\n");
+  return -1;
+}
+#endif
 
 #include <sys/types.h>
 #include <sys/time.h>

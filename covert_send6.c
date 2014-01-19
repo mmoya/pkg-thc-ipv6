@@ -9,6 +9,12 @@ int main() {
   return -1;
 }
 #else
+#if (_TAKE2 > 0)
+int main() {
+  fprintf(stderr, "Error: tool does not work on big endian\n");
+  return -1;
+}
+#endif
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -28,7 +34,7 @@ void help(char *prg) {
   printf("  -k key     encrypt the content with Blowfish-160\n");
   printf("  -s resend  send each packet RESEND number of times, default: 1\n");
   printf("\n");
-  printf("Sends the content of FILE covertly to the target, And its POC - dont except\n");
+  printf("Sends the content of FILE covertly to the target, And its POC - don't except\n");
   printf("too much sophistication - its just put into the destination header.\n");
   exit(-1);
 }
@@ -36,7 +42,7 @@ void help(char *prg) {
 int main(int argc, char *argv[]) {
   unsigned char *pkt1 = NULL, rbuf[3570], wbuf[3570], buf[4000];
   unsigned char *src6 = NULL, *dst6 = NULL, srcmac[6] = "", *mac = srcmac, *dmac;
-  int pkt1_len = 0, flags, i = 0, mtu = 0, bytes, seq = 0, id, rounds, wbytes, bufsize = 0, send = 2, num = 0;
+  int pkt1_len = 0, flags = 0, i = 0, mtu = 0, bytes, seq = 0, id, rounds, wbytes, bufsize = 0, send = 2, num = 0;
   char *interface, *key = NULL, hash[20], vec[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };;
   int rawmode = 0, tcp_port = -1;
   FILE *f;
@@ -142,7 +148,7 @@ int main(int argc, char *argv[]) {
       bufsize = bufsize + 2;
     }
 
-    if ((pkt1 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt1_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
+    if ((pkt1 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt1_len, src6, dst6, 0, 0, 0, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_dst(pkt1, &pkt1_len, buf, bufsize))
       return -1;

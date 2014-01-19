@@ -27,7 +27,7 @@ void help(char *prg) {
   printf("Options:\n");
   printf("  -s sourceip6  use the specified source IPv6 address\n");
   printf("  -p            do not perform an alive check at the beginning and end\n");
-  printf("Performs some ipv6 implementation checks, can be used to test some\nfirewall features too. Takes approx. 2 minutes to complete.\n");
+  printf("\nPerforms some IPv6 implementation checks, can be used to test some\nfirewall features too. Takes approx. 2 minutes to complete.\n");
   exit(-1);
 }
 
@@ -271,13 +271,17 @@ int main(int argc, char *argv[]) {
           src6 = thc_resolve6(optarg);
           break;
       default:
-          fprintf(stderr, "Error: unkown option %c\n", i);
+          fprintf(stderr, "Error: unknown option %c\n", i);
           exit(-1);
     }
   }
 
   interface = argv[optind];
   dst6 = thc_resolve6(argv[optind + 1]);
+  if (dst6 == NULL) {
+    fprintf(stderr, "Error: can not resolve %s to a valid IPv6 address\n", argv[optind + 1]);
+    exit(-1);
+  }
   memcpy(ldst6, dst6, 16);
   memset(ldst6 + 2, 0, 6);
   ldst6[0] = 0xfe;
@@ -298,6 +302,10 @@ int main(int argc, char *argv[]) {
     lsrc6 = src6;
   else
     lsrc6 = thc_get_own_ipv6(interface, ldst6, PREFER_LINK);
+  if (lsrc6 == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   strcat(string, thc_ipv62notation(src6));
   strcat(string2, thc_ipv62notation(dst6));
   srcmac = thc_get_own_mac(interface);
@@ -333,7 +341,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: hop-by-hop ignore option\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = NXT_IGNORE;
@@ -353,7 +361,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: hop-by-hop ignore option 2kb size\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bigbla, 0, sizeof(bigbla));
     bigbla[0] = NXT_IGNORE;
@@ -376,7 +384,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: 2 hop-by-hop headers\t\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
@@ -397,7 +405,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: 128 hop-by-hop headers\t\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
@@ -419,7 +427,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: destination ignore option\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = NXT_IGNORE;
@@ -439,7 +447,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: destination ignore option 2kb size\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bigbla, 0, sizeof(bigbla));
     bigbla[0] = NXT_IGNORE;
@@ -462,7 +470,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: 2 destination headers\t\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
@@ -483,7 +491,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: 128 destination headers\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
@@ -504,7 +512,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: 2000 destination headers\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
@@ -529,7 +537,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: 8172 destination headers\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
@@ -554,7 +562,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: correct fragmentation\t\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, sizeof(bla), 0);
@@ -573,7 +581,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: one-shot fragmentation\t\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_oneshotfragment(pkt, &pkt_len, getpid() + 70000) < 0)
       return -1;
@@ -595,7 +603,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: overlap-first-zero fragmentation\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = NXT_IGNORE;
@@ -605,7 +613,7 @@ int main(int argc, char *argv[]) {
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, srcmtu - 150, 0);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
       return -1;
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_dst(pkt2, &pkt_len2, (unsigned char *) &buf, 6) < 0)
       return -1;
@@ -616,7 +624,7 @@ int main(int argc, char *argv[]) {
     /* frag stuff */
     hdr = (thc_ipv6_hdr *) pkt;
     i = ((hdr->pkt_len - 40 - offset - 10) / 8) * 8;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 0, 1, count))
       return -1;
@@ -627,7 +635,7 @@ int main(int argc, char *argv[]) {
     thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt3, &pkt_len3);      // ignore
     pkt3 = thc_destroy_packet(pkt3);
     hdr = (thc_ipv6_hdr *) pkt2;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 0, 0, count))
       return -1;
@@ -648,7 +656,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: overlap-last-zero fragmentation\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = NXT_IGNORE;
@@ -658,7 +666,7 @@ int main(int argc, char *argv[]) {
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, srcmtu - 150, 0);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
       return -1;
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_dst(pkt2, &pkt_len2, (unsigned char *) &buf, 6) < 0)
       return -1;
@@ -669,7 +677,7 @@ int main(int argc, char *argv[]) {
     /* frag stuff */
     hdr = (thc_ipv6_hdr *) pkt2;
     i = ((hdr->pkt_len - 40 - offset - 10) / 8) * 8;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 0, 1, count))
       return -1;
@@ -680,7 +688,7 @@ int main(int argc, char *argv[]) {
     thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt3, &pkt_len3);      // ignore
     pkt3 = thc_destroy_packet(pkt3);
     hdr = (thc_ipv6_hdr *) pkt;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 0, 0, count))
       return -1;
@@ -701,7 +709,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: overlap-first-dst fragmentation\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = NXT_IGNORE;
@@ -711,7 +719,7 @@ int main(int argc, char *argv[]) {
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, srcmtu - 150, 0);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
       return -1;
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_dst(pkt2, &pkt_len2, (unsigned char *) &buf, 6) < 0)
       return -1;
@@ -722,7 +730,7 @@ int main(int argc, char *argv[]) {
     /* frag stuff */
     hdr = (thc_ipv6_hdr *) pkt;
     i = ((hdr->pkt_len - 40 - offset - 10) / 8) * 8;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 0, 1, count))
       return -1;
@@ -733,7 +741,7 @@ int main(int argc, char *argv[]) {
     thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt3, &pkt_len3);      // ignore
     pkt3 = thc_destroy_packet(pkt3);
     hdr = (thc_ipv6_hdr *) pkt2;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 1, 0, count))
       return -1;
@@ -754,7 +762,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: overlap-last-dst fragmentation\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = NXT_IGNORE;
@@ -764,7 +772,7 @@ int main(int argc, char *argv[]) {
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, srcmtu - 150, 0);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
       return -1;
-    if ((pkt2 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len2, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len2, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_dst(pkt2, &pkt_len2, (unsigned char *) &buf, 6) < 0)
       return -1;
@@ -775,7 +783,7 @@ int main(int argc, char *argv[]) {
     /* frag stuff */
     hdr = (thc_ipv6_hdr *) pkt2;
     i = ((hdr->pkt_len - 40 - offset - 10) / 8) * 8;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 0, 1, count))
       return -1;
@@ -786,7 +794,7 @@ int main(int argc, char *argv[]) {
     thc_generate_and_send_pkt(interface, srcmac, dstmac, pkt3, &pkt_len3);      // ignore
     pkt3 = thc_destroy_packet(pkt3);
     hdr = (thc_ipv6_hdr *) pkt;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 1, 0, count))
       return -1;
@@ -807,7 +815,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: source-routing (done)\t\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     routers[0] = src6;          // route via ourself, but
     routers[1] = NULL;          // telling the target that this was already performed
@@ -829,7 +837,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: source-routing (todo)\t\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     routers[0] = src6;          // route via ourself, and
     routers[1] = NULL;          // telling the target that this was NOT already performed
@@ -851,7 +859,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: unauth mobile source-route\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_mobileroute(pkt, &pkt_len, src6) < 0)
       return -1;
@@ -867,7 +875,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: mobile+source-routing (done)\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, 0, sizeof(bla));
     bla[0] = 2;
@@ -893,7 +901,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: fragmentation source-route (done)\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     routers[0] = src6;          // route via ourself, but
@@ -917,7 +925,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: fragmentation source-route (todo)\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     routers[0] = src6;          // route via ourself, but
@@ -942,7 +950,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: hop-by-hop fragmentation source-route\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     routers[0] = src6;          // route via ourself, but
     routers[1] = NULL;          // telling the target that this was already performed
@@ -955,7 +963,7 @@ int main(int argc, char *argv[]) {
     /* frag stuff */
     hdr = (thc_ipv6_hdr *) pkt;
     i = ((hdr->pkt_len - 40 - offset - 10) / 8) * 8;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = NXT_IGNORE;
@@ -981,7 +989,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: destination fragmentation source-route\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     routers[0] = src6;          // route via ourself, but
     routers[1] = NULL;          // telling the target that this was already performed
@@ -994,7 +1002,7 @@ int main(int argc, char *argv[]) {
     /* frag stuff */
     hdr = (thc_ipv6_hdr *) pkt;
     i = ((hdr->pkt_len - 40 - offset - 10) / 8) * 8;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = NXT_IGNORE;
@@ -1019,7 +1027,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: fragmentation hop-by-hop source-route\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
@@ -1048,7 +1056,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: fragmentation destination source-route\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
@@ -1080,11 +1088,11 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: node information\t\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
-    memcpy(buf, &count, 4);
-    memcpy(buf + 4, &count, 4);
+    memcpy(buf, (char*) &count + _TAKE4, 4);
+    memcpy(buf + 4, (char*) &count + _TAKE4, 4);
     memcpy(buf + 8, dst6, 16);
     thc_add_icmp6(pkt, &pkt_len, ICMP6_INFOREQUEST, 0, 0x00030000, (unsigned char *) &buf, 24, 0);
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
@@ -1098,7 +1106,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: inverse neighbor solicitation\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = 0x01;
@@ -1119,7 +1127,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: mobile prefix solicitation\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = 0xc9;
@@ -1139,7 +1147,7 @@ int main(int argc, char *argv[]) {
 
   if (test == 0 || test == count) {
     printf("Test %2d: certificate solicitation\t\t", count);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     i = count << 16;
     i += 0xffff;
@@ -1163,7 +1171,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: ping6 with a zero AH extension header\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_misc(pkt, &pkt_len, NXT_AH, -1, (unsigned char *) &buf, 6) < 0)
@@ -1182,7 +1190,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: TCP-SYN(1) with a zero AH extension header\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_misc(pkt, &pkt_len, NXT_AH, -1, (unsigned char *) &buf, 6) < 0)
@@ -1201,7 +1209,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: extension header with two bytes of ping6\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_misc(pkt, &pkt_len, NXT_DST, -1, (unsigned char *) &buf, 6) < 0)
@@ -1222,7 +1230,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: ping6 with a zero ESP extension header\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     if (thc_add_hdr_misc(pkt, &pkt_len, NXT_ESP, -1, (unsigned char *) &buf, 6) < 0)
@@ -1240,7 +1248,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: ping from multicast (local!)\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, mcast6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, mcast6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, 150, 0);
     thc_pcap_close(p);
@@ -1259,7 +1267,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: frag+source-route to link local\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     routers[0] = lsrc6;         // route via ourself
     routers[1] = NULL;
@@ -1282,7 +1290,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: frag+source-route to multicast\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     routers[0] = mcast6;
     routers[1] = NULL;
@@ -1305,7 +1313,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: frag+srcroute from link local (local!)\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, lsrc6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, lsrc6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     routers[0] = src6;
     routers[1] = NULL;
@@ -1332,7 +1340,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: frag+srcroute from multicast (local!)\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, mcast6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, mcast6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     routers[0] = src6;
     routers[1] = NULL;
@@ -1361,7 +1369,7 @@ int main(int argc, char *argv[]) {
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
     memcpy(buf, dst6, 16);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_NEIGHBORSOL, 0, 0, (unsigned char *) &buf, 16, 0);
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
@@ -1378,7 +1386,7 @@ int main(int argc, char *argv[]) {
     memset(bla, count % 256, sizeof(bla));
     memset(buf, 0, sizeof(buf));
     memcpy(buf, dst6, 16);
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 63, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 63, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_NEIGHBORSOL, 0, 0, (unsigned char *) &buf, 16, 0);
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
@@ -1393,7 +1401,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: filled ignore hop-by-hop option\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     i = 0;
@@ -1426,7 +1434,7 @@ int main(int argc, char *argv[]) {
   if (test == 0 || test == count) {
     printf("Test %2d: filled padding hop-by-hop option\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     i = 0;
@@ -1485,7 +1493,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: filled ignore destination option\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     i = 0;
@@ -1528,7 +1536,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: filled padding destination option\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     i = 0;
@@ -1564,7 +1572,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: jumbo option size < 64k\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = 0xc2;
@@ -1587,7 +1595,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: jumbo option size < 64k, length 0\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = 0xc2;
@@ -1614,7 +1622,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: error option in hop-by-hop\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = 0xc3;
@@ -1637,7 +1645,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: error option in dsthdr\t\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     memset(buf, 0, sizeof(buf));
     buf[0] = 0xc3;
@@ -1660,7 +1668,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: 0 length field\t\t\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, 150, 0);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
@@ -1681,7 +1689,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: too large length field\t\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, 150, 0);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
@@ -1702,7 +1710,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: too small length field\t\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, 150, 0);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
@@ -1723,7 +1731,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: ping6 with bad checksum\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, 150, 0x6666);
     while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
@@ -1738,7 +1746,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: ping6 with zero checksum\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, 150, 0x6666);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
@@ -1757,7 +1765,7 @@ buf[9] = i % 256;
   if (test == 0 || test == count) {
     printf("Test %2d: fragment missing\t\t\t", count);
     memset(bla, count % 256, sizeof(bla));
-    if ((pkt = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src6, dst6, 255, 0, count, 0, 0)) == NULL)
       return -1;
     thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, count, (unsigned char *) &bla, sizeof(bla) > 1400 ? 1400 : sizeof(bla), 0);
     if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) < 0)
@@ -1766,7 +1774,7 @@ buf[9] = i % 256;
     /* frag stuff */
     hdr = (thc_ipv6_hdr *) pkt;
     i = ((hdr->pkt_len - 40 - offset - 10) / 8) * 8;
-    if ((pkt3 = thc_create_ipv6(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
+    if ((pkt3 = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len3, src6, dst6, 0, 0, count, 0, 0)) == NULL)
       return -1;
     if (thc_add_hdr_fragment(pkt3, &pkt_len3, 128, 0, count))
       return -1;

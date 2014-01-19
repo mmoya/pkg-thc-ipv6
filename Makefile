@@ -1,5 +1,4 @@
-#
-# Comment out if openssl-dev is not available
+# Comment out if openssl-dev is not present
 HAVE_SSL=yes
 
 CC=gcc
@@ -7,9 +6,9 @@ CC=gcc
 CFLAGS=-O2
 CFLAGS+=$(if $(HAVE_SSL),-D_HAVE_SSL,)
 LDFLAGS+=-lpcap $(if $(HAVE_SSL),-lssl -lcrypto,)
-PROGRAMS=parasite6 dos-new-ip6 detect-new-ip6 fake_router6 fake_advertise6 fake_solicitate6 fake_mld6 fake_mld26 fake_mldrouter6 flood_mldrouter6 fake_mipv6 redir6 smurf6 alive6 toobig6 rsmurf6 implementation6 implementation6d sendpees6 sendpeesmp6 randicmp6 fuzz_ip6 flood_mld6 flood_mld26 flood_router6 flood_advertise6 flood_solicitate6 trace6 exploit6 denial6 fake_dhcps6 flood_dhcpc6 fake_dns6d fragmentation6 kill_router6 fake_dnsupdate6 ndpexhaust6 detect_sniffer6 dump_router6 fake_router26 flood_router26 passive_discovery6 dnsrevenum6 inverse_lookup6 node_query6 address6 covert_send6 covert_send6d inject_alive6 firewall6 ndpexhaust26 fake_pim6 thcsyn6 redirsniff6
+PROGRAMS=parasite6 dos-new-ip6 detect-new-ip6 fake_router6 fake_advertise6 fake_solicitate6 fake_mld6 fake_mld26 fake_mldrouter6 flood_mldrouter6 fake_mipv6 redir6 smurf6 alive6 toobig6 rsmurf6 implementation6 implementation6d sendpees6 sendpeesmp6 randicmp6 fuzz_ip6 flood_mld6 flood_mld26 flood_router6 flood_advertise6 flood_solicitate6 trace6 exploit6 denial6 fake_dhcps6 flood_dhcpc6 fake_dns6d fragmentation6 kill_router6 fake_dnsupdate6 ndpexhaust6 detect_sniffer6 dump_router6 fake_router26 flood_router26 passive_discovery6 dnsrevenum6 inverse_lookup6 node_query6 address6 covert_send6 covert_send6d inject_alive6 firewall6 ndpexhaust26 fake_pim6 thcsyn6 redirsniff6 flood_redir6 four2six dump_dhcp6 fuzz_dhcps6 flood_rs6
 LIBS=thc-ipv6-lib.o
-STRIP=strip
+STRIP=echo
 
 PREFIX=/usr/local
 MANPREFIX=${PREFIX}/share/man

