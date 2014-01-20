@@ -11,16 +11,16 @@ Subject: Fix Makefile
 * Remove script extension as per policy 10.4.
 * Install to /usr.
 ---
- Makefile |   34 +++++++++++++++++++++-------------
- 1 file changed, 21 insertions(+), 13 deletions(-)
+ Makefile |   32 ++++++++++++++++++++------------
+ 1 file changed, 20 insertions(+), 12 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index 03e5419..db98de6 100644
+index 0064be7..80078fb 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -11,34 +11,42 @@ PROGRAMS=parasite6 dos-new-ip6 detect-new-ip6 fake_router6 fake_advertise6 fake_
+@@ -10,34 +10,42 @@ PROGRAMS=parasite6 dos-new-ip6 detect-new-ip6 fake_router6 fake_advertise6 fake_
  LIBS=thc-ipv6-lib.o
- STRIP=strip
+ STRIP=echo
  
 -PREFIX=/usr/local
 +PREFIX=/usr
@@ -65,8 +65,7 @@ index 03e5419..db98de6 100644
 +	install -m0755 extract_hosts6.sh ${DESTDIR}${PREFIX}/bin/$(NAMEPREFIX)-extract_hosts6
 +	install -m0755 extract_networks6.sh ${DESTDIR}${PREFIX}/bin/$(NAMEPREFIX)-extract_networks6
  	install -m0755 -d ${DESTDIR}${MANPREFIX}/man8
--	install -m0644 -D thc-ipv6.8 ${DESTDIR}${MANPREFIX}/man8
-+	install -m0644 -D thc-ipv6.8 ${DESTDIR}${MANPREFIX}/man8/attack-toolkit6.8
+ 	install -m0644 -D thc-ipv6.8 ${DESTDIR}${MANPREFIX}/man8
  
  clean:
 -	rm -f $(PROGRAMS) dnsdict6 thcping6 dnssecwalk $(LIBS) core DEADJOE *~
