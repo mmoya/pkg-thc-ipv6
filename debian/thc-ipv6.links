@@ -10,6 +10,7 @@ usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-dnsrevenum6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-dnssecwalk.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-dos-new-ip6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-dos_mld.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-dump_dhcp6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-dump_router6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-exploit6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-extract_hosts6.8.gz
@@ -32,10 +33,14 @@ usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_dhcpc6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_mld26.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_mld6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_mldrouter6.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_redir6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_router26.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_router6.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_rs6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_solicitate6.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-four2six.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fragmentation6.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fuzz_dhcps6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fuzz_ip6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-implementation6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-implementation6d.8.gz
