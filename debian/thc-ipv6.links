@@ -22,9 +22,11 @@ usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_mipv6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_mld26.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_mld6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_mldrouter6.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_pim6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_router26.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_router6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_solicitate6.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-firewall6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_advertise6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_dhcpc6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-flood_mld26.8.gz
@@ -37,8 +39,10 @@ usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fragmentation6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fuzz_ip6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-implementation6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-implementation6d.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-inject_alive6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-inverse_lookup6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-kill_router6.8.gz
+usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-ndpexhaust26.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-ndpexhaust6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-node_query6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-parasite6.8.gz
@@ -54,7 +58,3 @@ usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-thcping6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-thcsyn6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-toobig6.8.gz
 usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-trace6.8.gz
-usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-fake_pim6.8.gz
-usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-firewall6.8.gz
-usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-inject_alive6.8.gz
-usr/share/man/man8/thc-ipv6.8.gz usr/share/man/man8/atk6-ndpexhaust26.8.gz
