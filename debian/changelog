@@ -1,4 +1,12 @@
-thc-ipv6 (2.5-1) unstable; urgency=low
+thc-ipv6 (2.5-2) unstable; urgency=low
+
+  * Override spelling-error-in-binary lintian tag
+  * Refresh patch to fix "don't" spelling
+  * Bump Standards-Version to 3.9.5
+
+ -- Maykel Moya <mmoya@mmoya.org>  Mon, 20 Jan 2014 14:28:06 +0100
+
+thc-ipv6 (2.5-1) UNRELEASED; urgency=low
 
   * Imported Upstream version 2.5
   * Upstream license was changed to AGPL-3.0
