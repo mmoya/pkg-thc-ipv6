@@ -1,4 +1,17 @@
-thc-ipv6 (2.3-1) unstable; urgency=low
+thc-ipv6 (2.5-1) unstable; urgency=low
+
+  * Imported Upstream version 2.5
+  * Upstream license was changed to AGPL-3.0
+  * Make .links file match actual binary package name
+  * Update manpage soft links target
+  * Keep links to manpage sorted
+  * Add manpage links for new tools
+  * Override lintian warning manpage-has-bad-whatis-entry
+  * Patches refreshed
+
+ -- Maykel Moya <mmoya@mmoya.org>  Mon, 20 Jan 2014 13:26:16 +0100
+
+thc-ipv6 (2.3-1) UNRELEASED; urgency=low
 
   [ Maykel Moya ]
 
