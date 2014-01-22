@@ -9,7 +9,7 @@ Standards-Version: 3.9.5
 Vcs-Browser: https://github.com/mmoya/pkg-thc-ipv6
 
 Package: thc-ipv6
-Architecture: any
+Architecture: linux-any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: The Hacker Choice's IPv6 Attack Toolkit
  Attack toolkit for testing IPv6 and ICMPv6 protocol weaknesses.
