@@ -1,3 +1,14 @@
+thc-ipv6 (2.5-3) unstable; urgency=medium
+
+  * Improve Description
+  * Add Vcs-Browser url
+  * Upstream requires linux 2.6, change arch to linux-any
+  * Override description-synopsis-starts-with-article lintian tag
+  * ITP closing indication was inside an unreleased version an wasn't picked
+    up (closes: #690520).
+
+ -- Maykel Moya <mmoya@mmoya.org>  Wed, 22 Jan 2014 13:05:51 +0100
+
 thc-ipv6 (2.5-2) unstable; urgency=low
 
   * Override spelling-error-in-binary lintian tag
