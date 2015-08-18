@@ -1,3 +1,16 @@
+thc-ipv6 (2.7-1~1.gbpd9ae68) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @d9ae68ec2eccc7313ad99f8b7c3dba7b133b0f1c **
+
+  [ Arturo Borrero Gonzalez ]
+  * d/control: add Vcs-Git entry
+  * d/control: bump standars to 3.9.6
+  * Imported Upstream version 2.7
+
+  [ aborrero ]
+
+ -- Arturo Borrero Gonzalez <aborrero@cica.es>  Tue, 18 Aug 2015 12:44:28 +0200
+
 thc-ipv6 (2.5-3) unstable; urgency=medium
 
   * Improve Description
