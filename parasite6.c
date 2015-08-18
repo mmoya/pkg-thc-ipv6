@@ -18,7 +18,7 @@ char *ptr1, *ptr2, *ptr3, *ptr4;
 thc_ipv6_hdr *hdr;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-lRFHD] interface [fake-mac]\n\n", prg);
   printf("This is an \"ARP spoofer\" for IPv6, redirecting all local traffic to your own\n");
   printf("system (or nirvana if fake-mac does not exist) by answering falsely to\n");
@@ -145,7 +145,7 @@ void intercept(u_char *foo, const struct pcap_pkthdr *header, const unsigned cha
 
   ipv6->pkt[56] = 0;
   ipv6->pkt[57] = 0;
-  ipv6->pkt[pkt_len - 28] = 0x60; // set SOL flag again
+  ipv6->pkt[pkt_len - 28] = 0xe0; // set SOL flag again
   (void) wait3(NULL, WNOHANG, NULL);
   return;
 }
@@ -258,8 +258,10 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, kill_children);
   memset((char*)pp, 0, sizeof(pp));
 
-  printf("Remember to enable routing (ip_forwarding), you will denial service otherwise!\n");
+  printf("Remember to enable routing, you will denial service otherwise:\n");
   printf(" =>  echo 1 > /proc/sys/net/ipv6/conf/all/forwarding\n");
+  printf("Remember to prevent sending out ICMPv6 Redirect packets:\n");
+  printf(" =>  ip6tables -I OUTPUT -p icmpv6 --icmpv6-type redirect -j DROP\n");
   printf("Started ICMP6 Neighbor Solitication Interceptor (Press Control-C to end) ...\n");
   return thc_pcap_function(interface, "icmp6", (char *) intercept, 1, NULL);
 }

@@ -151,7 +151,7 @@ unsigned int dwords[] = { 0x00000000, 0x00000001, 0x000000fe, 0x000000ff,
 int port = -1;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-x] [-t number | -T number] [-p number] [-IFSDHRJ] [-X|-1|-2|-3|-4|-5|-6|-7|-8|-9|-0 port] interface unicast-or-multicast-address [address-in-data-pkt]\n\n", prg);
   printf("Fuzzes an icmp6 packet\n");
   printf("Options:\n");
@@ -414,12 +414,14 @@ int main(int argc, char *argv[]) {
   if (alert || hopbyhop || jumbo) {
     memset(buf2, 0, sizeof(buf2));
     i = 0;
+    
+    strcat(fuzzbuf, "XX"); // first two bytes of EH
 
     if (alert) {
       buf2[i++] = 5;
       buf2[i++] = 2;
       i += 2;
-      strcat(fuzzbuf, ".F.F");
+      strcat(fuzzbuf, ".FW");
     }
 
     if (jumbo) {
@@ -429,7 +431,7 @@ int main(int argc, char *argv[]) {
       buf2[i++] = 'J';
       buf2[i++] = 'J';
       buf2[i++] = 'J';
-      strcat(fuzzbuf, ".FBBBB");
+      strcat(fuzzbuf, ".FWW");
     }
 
     if (hopbyhop) {
@@ -444,8 +446,14 @@ int main(int argc, char *argv[]) {
           buf3[2 + j] = '.';
           i += j;
         }
-        strcat(fuzzbuf, buf3);  // always: X... for every new option
+        strcat(fuzzbuf, buf3);  // always: X..... for every new option
       }
+    }
+    
+    j = 8 - ( ( i + 2 ) % 8 );
+    if (j > 0 && j < 8) {
+      for (k = 0; k < j; k++)
+        strcat(fuzzbuf, "."); // fill because of padding
     }
 
     if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf2, i) < 0)
@@ -480,6 +488,7 @@ int main(int argc, char *argv[]) {
   if (destination) {
     memset(buf2, 0, sizeof(buf2));
     memset(buf3, 0, sizeof(buf3));
+    strcat(fuzzbuf, "XX"); // first two bytes of EH
     buf3[0] = 'X';
     buf3[1] = '.';
     i = 0;
@@ -492,6 +501,12 @@ int main(int argc, char *argv[]) {
         i += j;
       }
       strcat(fuzzbuf, buf3);    // always: X... for every new option
+    }
+
+    j = 8 - ( ( i + 2 ) % 8 );
+    if (j > 0 && j < 8) {
+      for (k = 0; k < j; k++)
+        strcat(fuzzbuf, "."); // fill because of padding
     }
 
     if (thc_add_hdr_dst(pkt, &pkt_len, buf2, i) < 0)

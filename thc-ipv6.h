@@ -1,5 +1,5 @@
 /*
- * (c) 2013 by van Hauser / THC
+ * (c) 2014 by van Hauser / THC
  *
  * THC IPv6 Attack Library Header Files
  *
@@ -17,7 +17,7 @@
   #include <openssl/rsa.h>
 #endif
 
-#define VERSION 	"v2.5"
+#define VERSION 	"v2.7"
 #define AUTHOR 		"van Hauser / THC <vh@thc.org>"
 #define RESOURCE	"www.thc.org"
 
@@ -61,13 +61,13 @@
 #define ICMP6_ROUTERPROXYSOL 154
 #define ICMP6_ROUTERPROXYADV 155
 
-#define ICMP6_NEIGHBORADV_ROUTER   0x80000000
-#define ICMP6_NEIGHBORADV_SOLICIT  0x40000000
-#define ICMP6_NEIGHBORADV_OVERRIDE 0x20000000
+#define ICMP6_NEIGHBORADV_ROUTER   0x080000000
+#define ICMP6_NEIGHBORADV_SOLICIT  0x040000000
+#define ICMP6_NEIGHBORADV_OVERRIDE 0x020000000
 
 #define PREFER_HOST     16
-#define PREFER_LINK	32
-#define PREFER_GLOBAL	 0
+#define PREFER_LINK     32
+#define PREFER_GLOBAL    0
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   #define _TAKE4 0
@@ -129,7 +129,7 @@ extern int thc_add_tcp(unsigned char *pkt, int *pkt_len, unsigned short int spor
 extern int thc_add_udp(unsigned char *pkt, int *pkt_len, unsigned short int sport, unsigned short int dport, unsigned int checksum, char *data, int data_len);
 extern int thc_add_ipv4(unsigned char *pkt, int *pkt_len, int src, int dst);
 extern int thc_add_ipv4_extended(unsigned char *pkt, int *pkt_len, int src, int dst, unsigned char tos, int id, unsigned char ttl);
-extern int thc_add_ipv4_rudimentary(unsigned char *pkt, int *pkt_len, int src, int dst, int port);
+extern int thc_add_ipv4_rudimentary(unsigned char *pkt, int *pkt_len, int src, int dst, int sport, int port);
 extern int thc_add_data6(unsigned char *pkt, int *pkt_len, unsigned char type, unsigned char *data, int data_len);
 extern int thc_generate_and_send_pkt(char *interface, unsigned char *srcmac, unsigned char *dstmac, unsigned char *pkt, int *pkt_len);
 extern int thc_generate_pkt(char *interface, unsigned char *srcmac, unsigned char *dstmac, unsigned char *pkt, int *pkt_len);
@@ -148,6 +148,7 @@ extern unsigned char *thc_memstr(char *haystack, char *needle, int haystack_leng
 extern void thc_notation2beauty(unsigned char *ipv6);
 extern int thc_bind_udp_port(int port);
 extern int thc_bind_multicast_to_socket(int s, char *interface, char *src);
+extern char *warlord_checkFingerprint(char *buffer, int len);
 
 #define DO_CHECKSUM 0xfaf4
 

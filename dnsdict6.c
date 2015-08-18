@@ -5,10 +5,10 @@
  *   - ipv6 support
  *   - simplified options
  *   - srv support
- * have fun!     van Hauser / THC, May 2013
+ * have fun!     van Hauser / THC, (c) 2014 
  *
  * ** dnsmap - DNS Network Mapper by pagvac
- * ** Copyright (C) 2013 gnucitizen.org
+ * ** Copyright (C) 2014 gnucitizen.org
  */
 
 #include <stdio.h>
@@ -40,14 +40,14 @@
 char domain[256];
 unsigned short int filtIPcount = 0, milliseconds = 10, ipCount = 0, ipCount4;
 unsigned short int intIPcount = 0, found = 0, txtResults = FALSE, do4 = 0, do6 = 1, dof = 0, dosrv = 0;
-unsigned short int csvResults = FALSE, delay = FALSE, ucount = 0, ucount4 = 0, ucountsrv = 0, ucountsrvs = 0, wcard = 0, wcard4 = 0;
+unsigned short int csvResults = FALSE, do_a_delay = FALSE, ucount = 0, ucount4 = 0, ucountsrv = 0, ucountsrvs = 0, wcard = 0, wcard4 = 0;
 char wildcardIpStr[MAX_WCARD][INET_ADDRSTRLEN], wildcardIpStr4[MAX_WCARD][16], unique[MAX_UNIQUE][INET_ADDRSTRLEN], unique4[MAX_UNIQUE][16];
 char **sub = (char **) sub_medium, *type = "";
 char ***lists;
 unsigned short int listptr[MAX_THREADS];
 
 void *help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-d4] [-s|-m|-l|-x|-u] [-t THREADS] [-D] domain [dictionary-file]\n\n", prg);
   printf("Enumerates a domain for DNS entries, it uses a dictionary file if supplied\n");
   printf("or a built-in list otherwise. This tool is based on dnsmap by gnucitizen.org.\n\n");
@@ -57,6 +57,7 @@ void *help(char *prg) {
   printf(" -t NO   specify the number of threads to use (default: %d, max: %d).\n", DEFAULT_THREADS, MAX_THREADS);
   printf(" -D      dump the selected built-in wordlist, no scanning.\n");
   printf(" -d      display IPv6 information on NS and MX DNS domain information.\n");
+  printf(" -e      ignore no NS for domain errors\n");
   printf(" -S      perform SRV service name guessing\n");
   printf(" -[smlxu] choose the dictionary size by -s(mall=100), -m(edium=1419) (DEFAULT)\n");
   printf("           -l(arge=2601), -x(treme=5886) or -u(ber=16724)\n");
@@ -349,7 +350,7 @@ void threaded_resolve(char *list[]) {
       freeaddrinfo(res);        // free the linked list
     }                           // end of if conditional
     // user wants delay between DNS requests?
-    if (delay)
+    if (do_a_delay)
       dodelay(milliseconds);
     i++;
   }
@@ -515,7 +516,7 @@ void threaded_resolve_srv(char *list[]) {
 //else printf("ptr: %s %d len %d code %d valid\n", dom, len, (vbuf[3] & 15), vbuf[2]);
     }
     // user wants delay between DNS requests?
-    if (delay)
+    if (do_a_delay)
       dodelay(milliseconds);
     i++;
   }
@@ -537,13 +538,13 @@ void dump_dns(char *dom, int type) {
   memset((char *) &hints, 0, sizeof(hints));
   hints.ai_family = dof;
   if (((len = res_query(dom, ns_c_in, type, vbuf, sizeof(vbuf))) < (30 + strlen(dom))) || ((*vptr & 0x82) != 0x80) || ((*(vptr + 1) & 0x0f) != 0)) {
-    fprintf(stderr, "Warning: no %s information found\n", type == ns_t_ns ? "name server (NS)" : "mail sever (MX)");
+    fprintf(stderr, "Warning: no %s information found\n", type == ns_t_ns ? "name server (NS)" : "mail server (MX)");
     return;
   }
   vptr += 4;
   cnt = *vptr * 256 + *(vptr + 1);
   if (cnt < 1 || cnt > 16) {
-    fprintf(stderr, "Warning: no %s information found\n", type == ns_t_ns ? "name server (NS)" : "mail sever (MX)");
+    fprintf(stderr, "Warning: no %s information found\n", type == ns_t_ns ? "name server (NS)" : "mail server (MX)");
     return;
   }
   vptr += 6;
@@ -622,7 +623,7 @@ void dump_dns(char *dom, int type) {
 int main(int argc, char *argv[]) {
   unsigned short wordlist = FALSE, threads = 8, dumpit = 0, showdns = 0;
   unsigned long int wcount = 0;
-  int i = 0, j, k;
+  int i = 0, j, k, ignore_ns_error = 0;
   char dom[MAXSTRSIZE] = "", *wordlistFilename = NULL;
   FILE *fpWords;
   char typ = 't', **sub_orig;
@@ -645,7 +646,7 @@ int main(int argc, char *argv[]) {
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0 || strncmp(argv[1], "--h", 3) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "dt:smlxuSD46")) >= 0) {
+  while ((i = getopt(argc, argv, "det:smlxuSD46")) >= 0) {
     switch (i) {
     case '4':
       do4 = 1;
@@ -655,6 +656,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'd':
       showdns = 1;
+      break;
+    case 'e':
+      ignore_ns_error = 1;
       break;
     case 't':
       threads = atoi(optarg);
@@ -733,7 +737,8 @@ int main(int argc, char *argv[]) {
   strcat(domain, ".");
   if (verifyDomain(domain) != TRUE) {
     fprintf(stderr, "Error: no name server (NS) entry for domain %s exists\n", domain);
-    exit(-1);
+    if (ignore_ns_error == 0)
+      exit(-1);
   }
 
   printf("Starting DNS enumeration work on %s ...\n", domain);

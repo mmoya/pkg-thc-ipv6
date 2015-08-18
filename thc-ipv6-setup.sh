@@ -33,6 +33,7 @@ test "$1" = "-h" -o "$1" = "help" -o "$1" = "--help" -o -z "$1" && {
   echo "" redirfilter - sets ip6table to prevent sedning redirects "(option: interface)"
   echo "" src - enables or disables source routing and routing
   echo "" fwreset - reset the ipv6 firewalls
+  echo
   echo prepend the keyword \"no\" to use reverse the function of the command
   OK=1
 }

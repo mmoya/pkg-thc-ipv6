@@ -28,7 +28,7 @@ int udp = 0, offset = 48, buf_len = 16, tunnel = 0, do_alert = 0, do_reply = 0, 
 int up_to = MAX_SEND, complete = 0, type = 0, rawmode = 0, finaldst = 0;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-abdtu] [-s src6] interface targetaddress [port]\n\n", prg);
   printf("Options:\n");
   printf("  -a       insert a hop-by-hop header with router alert option.\n");
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
   int pkt_len = 0, pkt2_len = 0, prefer = PREFER_GLOBAL, i, k, m, dport = 0, resolve = 0, notreached = 0;
   unsigned int j;
   struct hostent *he;
-  unsigned char *interface, *srcmac, buf[2560], dummy[4] = "???", text[120], buf3[6];
+  unsigned char *interface, *srcmac, *buf = NULL, dummy[4] = "???", text[120], buf3[6];
   time_t passed;
   pcap_t *p;
   thc_ipv6_hdr *ipv6;
@@ -373,18 +373,25 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
+  if ((mtu = thc_get_mtu(interface)) < 1280) {
+    fprintf(stderr, "Error: invalid MTU (< 1280) on %s: %d\n", interface, mtu);
+    exit(-1);
+  }
+  if ((buf = malloc(mtu + 128)) == NULL) {
+    perror("malloc");
+    exit(-1);
+  }
+  memset(buf, 0, mtu);
+
   if (tunnel) {
     if (type == 1)
       offset += 12;
     if (do_hdr_size)
       offset += do_hdr_size;
-    if ((mtu = thc_get_mtu(interface)) > sizeof(buf) + offset)
-      buf_len = sizeof(buf) + offset;
-    else
-      buf_len = mtu - offset;
+    orig_mtu = mtu;
+    buf_len = mtu - offset;
     if (do_alert)
       buf_len -= 8;
-    orig_mtu = buf_len + offset;
   }
 
   if (do_alert) {
@@ -402,9 +409,9 @@ int main(int argc, char *argv[]) {
   } else {
     buf2[0] = getpid() / 256;
     buf2[1] = getpid() % 256;
-    buf2[2] = buf[0];           // unitialized, thats fine
-    buf2[3] = buf[1];           // unitialized, thats fine
-    for (m = 0; m < (sizeof(buf) / 4); m++)
+    buf2[2] = buf[0];
+    buf2[3] = buf[1];
+    for (m = 0; m < (mtu / 4); m++)
       memcpy(buf + (m * 4), buf2, 4);
   }
 
@@ -436,7 +443,7 @@ int main(int argc, char *argv[]) {
             }
           }
           if (type == 0) {
-            if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, j, (unsigned char *) &buf, buf_len, 0) < 0)
+            if (thc_add_icmp6(pkt, &pkt_len, ICMP6_PINGREQUEST, 0, j, (unsigned char *) buf, buf_len, 0) < 0)
               return -1;
           } else {
             if (type == 2) {
@@ -449,7 +456,7 @@ int main(int argc, char *argv[]) {
                 foo6[8] = 1;
               if ((pkt2 = thc_create_ipv6_extended(interface, 0, &pkt2_len, dst6, foo6, i, 0, 0, 0, 0)) == NULL)
                 return -1;
-              if (thc_add_icmp6(pkt2, &pkt2_len, ICMP6_PINGREQUEST, 0, j, (unsigned char *) &buf, m, 0) < 0)
+              if (thc_add_icmp6(pkt2, &pkt2_len, ICMP6_PINGREQUEST, 0, j, (unsigned char *) buf, m, 0) < 0)
                 return -1;
               thc_generate_pkt(interface, foomac, foomac, pkt2, &pkt2_len);
               ipv6 = (thc_ipv6_hdr *) pkt2;

@@ -15,7 +15,7 @@ unsigned char dmac[6], *mac;
 int done = 0;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s interface mac-address\n\n", prg);
   printf("Performs an inverse address query, to get the IPv6 addresses that are assigned\n");
   printf("to a MAC address. Note that only few systems support this yet.\n");
@@ -23,7 +23,7 @@ void help(char *prg) {
 }
 
 void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned char *data) {
-  unsigned char *ptr = (unsigned char *) data;
+  unsigned char *ptr = (unsigned char *) data, *orig_ptr;
   int len = header->caplen, i, j;
 
   if (rawmode == 0) {
@@ -38,17 +38,29 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
     }
   }
 
+  orig_ptr = ptr;
   if (debug)
     thc_dump_data(ptr, len, "Received Packet");
   if (ptr[6] == 0x3a && ptr[40] == ICMP6_INVNEIGHBORADV && len >= 56) {
     done = 1;
     j = (len - 56) / 16;
-    if (j == 0) {
+    if (j <= 0) {
       printf("Empty Inverse Neighbor Discovery message received by %s for %s\n", thc_ipv62notation((char *) ptr + 8), mac);
     } else {
-      printf("Inverse Advertisement Discovery message received by %s for %s (%d entries):\n", thc_ipv62notation((char *) ptr + 8), mac, j);
-      for (i = 0; i < j; i++)
-        printf("  %s\n", thc_ipv62notation((char *) ptr + 56 + i * 16));
+      ptr += 48; len -= 48;
+      while (len > 15) {
+        if (*ptr == 10) {
+          ptr++;
+          j = ((*ptr * 8) - 8) / 16;
+          printf("Inverse Advertisement Discovery message received by %s for %s (%d entries):\n", thc_ipv62notation((char *) orig_ptr + 8), mac, j);
+          if (j >= 1)
+            for (i = 0; i < j; i++)
+              printf("  %s\n", thc_ipv62notation((char *) ptr + 7 + i * 16));
+        } else
+          ptr++;
+        len -= *ptr * 8 - 1;
+        ptr += *ptr * 8 - 1;
+      }
     }
   }
 }

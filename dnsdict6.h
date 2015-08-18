@@ -1,5 +1,5 @@
 /*
- * dnsdict.h (c) 2013 by van Hauser / THC
+ * dnsdict.h (c) 2014 by van Hauser / THC
  *
  */
 
@@ -283,6 +283,7 @@ char *sub_medium[] = {
   "ae-1",
   "ae-2",
   "af",
+  "aftr",
   "agenda",
   "agent",
   "ak",
@@ -1889,6 +1890,7 @@ char *sub_large[] = {
   "ae-1",
   "ae-2",
   "af",
+  "aftr",
   "ag",
   "agenda",
   "agent",
@@ -4946,6 +4948,7 @@ char *sub_xtreme[] = {
   "afs3-update",
   "afs3-vlserver",
   "afs3-volser",
+  "aftr",
   "ag",
   "agenda",
   "agent",
@@ -11171,6 +11174,7 @@ char *sub_uber[] = {
   "afs3-vlserver",
   "afs3-volser",
   "afternoon",
+  "aftr",
   "ag",
   "ag1",
   "ag2",
@@ -15094,6 +15098,7 @@ char *sub_uber[] = {
   "ep",
   "epaper",
   "epay",
+  "epg",
   "epi",
   "epic",
   "epimetheus",

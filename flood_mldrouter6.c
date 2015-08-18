@@ -11,7 +11,7 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s interface [target]\n\n", prg);
   printf("Flood the local network with MLD router advertisements.\n");
 //  printf("Use -r to use raw mode.\n\n");
@@ -47,11 +47,14 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Error: invalid interface %s\n", interface);
     exit(-1);
   }
-  if (argc > 2)
+  if (argc > 2) {
     if ((dst = thc_resolve6(argv[2])) == NULL) {
       fprintf(stderr, "Error: can not resolve %s\n", argv[2]);
       exit(-1);
     }
+    if (dst[0] >= 0x20 && dst[0] <= 0xfd)
+      ip6 = thc_get_own_ipv6(interface, dst, PREFER_GLOBAL);
+  }
 
   memset(buf, 0, sizeof(buf));
   mac[0] = 0x00;

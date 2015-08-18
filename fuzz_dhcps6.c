@@ -1,3 +1,9 @@
+/*
+ * Contributed by:
+ *  Brandon Hutcheson, Graeme Neilson and Ryan Ko
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -165,7 +171,7 @@ char solicit[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x02, 0x00, 0x00,
 int port = -1;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, "Brandon Hutcheson and Graeme Neilson", RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, "Brandon Hutcheson, Graeme Neilson and Ryan Ko", RESOURCE);
   printf("Syntax: %s [-t number | -T number] [-e number | -T number] [-p number] [-md] [-1|-2|-3|-4|-5|-6|-7|-8] interface [domain-name]\n\n", prg);
   printf("Fuzzes an DHCPv6 packet\n");
   printf("Options:\n");
@@ -220,6 +226,7 @@ int try_send_pkt(char *interface, char *pkt, int *pkt_len) {
     fprintf(stderr, "Timeout error: Unable to send check alive packet within timeout\n");
     exit(-1);
   }
+  return 0;
 }
 
 int check_alive(pcap_t * p) {
@@ -483,6 +490,7 @@ int fuzz_loop(char* pkt, int* pkt_len) {
       test_current++;
     }
   }
+  return 0;
 }
 
 void construct_from_adv_and_fuzz(u_char *foo, const struct pcap_pkthdr *header, const unsigned char *data) {
@@ -724,6 +732,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'd':
       do_dns = 1;
+      break;
     case 'r':
       i = 0;
       break;                    // just to ignore -r
@@ -740,7 +749,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (test_end < test_start) {
-    printf("dont fuck up the command line options!\n");
+    printf("don't fuck up the command line options!\n");
     exit(-1);
   }
 

@@ -13,7 +13,7 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s interface network-address/prefix-length dns-server [dhcp-server-ip-address [mac-address]]\n\n", prg);
   printf("Fake DHCPv6 server. Use to configure an address and set a DNS server\n");
   exit(-1);
@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
   routerip = argv[2];
   if ((ptr = index(routerip, '/')) == NULL) {
     printf("Error: Option must be supplied as IP-ADDRESS/PREFIXLENGTH, e.g. ff80::01/16\n");
+    exit(-1);
   }
   *ptr++ = 0;
   size = atoi(ptr);

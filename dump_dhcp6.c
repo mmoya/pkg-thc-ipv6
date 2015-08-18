@@ -16,17 +16,30 @@ char *interface = NULL, *dns_name = NULL, elapsed[6] = { 0, 8, 0, 2, 0, 0 };
 int counter = 0;
 
 // start0: 1-3 rand, 18-21 rand, 22-27 mac, 32-35 rand
-char solicit[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x02, 0x00, 0x00,
+char solicit[] = {
+  0x01, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x02, 0x00, 0x00,
   0x00, 0x01, 0x00, 0x0e, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
   0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x10, 0x00, 0x15,
+  0x00, 0x17, 0x00, 0x1f, 0x00, 0x38, 0x00, 0x40, 0x00, 0x63,
+  0x00, 0x7b, 0x00, 0xc7, 0x00, 0x14, 0x00, 0x00
+};
+char inforeq[] = {
+  0x0b, 0x3a, 0x48, 0x79, 0x00, 0x08, 0x00, 0x02, 
+  0x06, 0x40, 0x00, 0x01, 0x00, 0x0e, 0x00, 0x01, 
+  0x00, 0x01, 0x1a, 0x7d, 0x43, 0x48, 0x3c, 0x97, 
+  0x0e, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x0e, 
+  0x00, 0x00, 0x01, 0x37, 0x00, 0x08, 0x4d, 0x53, 
+  0x46, 0x54, 0x20, 0x35, 0x2e, 0x30, 0x00, 0x06, 
+  0x00, 0x08, 0x00, 0x18, 0x00, 0x17, 0x00, 0x11, 
+  0x00, 0x20
 };
 char dnsupdate1[] = { 0, 39, 0, 8, 1, 6, 122, 97, 97, 97, 97, 97 };
 char dnsupdate2[] = { 0, 6, 0, 2, 0, 39 };
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s interface\n\n", prg);
   printf("DHCPv6 information tool. Dumps the available servers and their setup.\n");
   exit(-1);
@@ -38,8 +51,8 @@ void clean_exit(int signo) {
 }
 
 void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned char *data) {
-  int len = header->caplen, rlen, i, j;
-  unsigned char *ptr = (unsigned char *) data, *rdata;
+  int len = header->caplen, rlen, i, j, k;
+  unsigned char *ptr = (unsigned char *) data, *rdata, type;
   char mybuf[1024] = { 0x03, 0, 0, 0, 0, 8, 0, 2, 0, 0 };
 
   if (do_hdr_size) {
@@ -54,9 +67,12 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
   rlen = len;
   rdata = (unsigned char *) data;
 
-  if (len < 126 || data[6] != NXT_UDP || data[48] != 2)
+//printf("x %d < 126, %d != %d, %d != 2||7\n", len, data[6], NXT_UDP, data[48]);
+  if (len < 100 || data[6] != NXT_UDP || (data[48] != 2 && data[48] != 7))
     return;
+//printf("y\n");
 
+  type = data[48];
   data += 48;
   len -= 48;
 
@@ -93,7 +109,7 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
 */
   if (len >= 4) {
     counter++;
-    printf("\nDHCPv6 packet received:\n");
+    printf("\nDHCPv6 packet received: %s\n", type == 2 ? "Advertise" : "Reply");
     printf("  Server IP6: %s\n", thc_ipv62notation(rdata + 8));
     printf("  Server MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", ptr[6], ptr[7], ptr[8], ptr[9], ptr[10], ptr[11]);
     while (len >= 4) {
@@ -105,24 +121,86 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
       }
       switch(i) {
         case 1:
-          printf(""); // client identifier
+          //printf(""); // client identifier
           break;
         case 2:
-          printf(""); // server identier
+          if (j > 0) {
+            printf("    Server Identifier: "); // server identier
+            for (k = 0; k < j; k++) {
+              printf("%02x", (unsigned char) data[4 + k]);
+            }
+            printf("\n");
+          }
           break;
         case 3:
-          if (data[16] == 0 && data[17] == 5)
+          if (j >= 16 && data[16] == 0 && data[17] == 5)
             printf("    Address Offered: %s\n", thc_ipv62notation((unsigned char*)data + 20));
           break;
         case 7:
-          printf(""); // prefered value
+          printf("    Prefered value (not implemented)\n"); // prefered value
           break;
         case 13:
         case 19:
-          printf("    Status Code: %d", data[5] * 256 + data[6]); // status code
+          if (j >= 2) {
+            printf("    Status Code: %d", data[4] * 256 + data[5]);
+            if (j > 2) {
+              printf(" (");
+              for (k = 0; k < (j - 2); k++)
+                printf("%c", isprint(data[6 + k]) ? data[6 + k] : '.');
+              printf(")");
+            }
+            printf("\n");
+          }
+          break;
+        case 20:
+          printf("    Reconfigure Request: Accepted\n"); // reconfigure accept
+          break;
+        case 21:
+          printf("    SIP Domain List: "); // sip server domain list
+          for (k = 1; k < j; k++) {
+            if (data[4 + k] == 0 && k + 1 < j) {
+              printf(". + ");
+              k++;
+            } else
+              printf("%c", isprint(data[4 + k]) ? data[4 + k] : '.');
+          }
+          printf("\n");
           break;
         case 23:
-          printf("    DNS Server: %s\n", thc_ipv62notation((unsigned char*)data + 4));
+          if (j >= 16)
+            for (k = 0; k < (j / 16); k++)
+              printf("    DNS Server: %s\n", thc_ipv62notation((unsigned char*)data + 4 + (k * 16)));
+          break;
+        case 25:
+          if (data[17] == 0x1a)
+            printf("    Prefix Delegation: %s\n", thc_ipv62notation((unsigned char*) data + 29));
+          break;
+        case 31:
+          if (j >= 16)
+            for (k = 0; k < (j / 16); k++)
+              printf("    NTP Server: %s\n", thc_ipv62notation((unsigned char*)data + 4 + (k * 16)));
+          break;
+        case 32:
+          if (j >= 4)
+            printf("    Lifetime: %u\n", (unsigned int) ((data[4] << 24) + (data[5] << 16) + (data[6] << 8) + data[7]));
+          break;
+        case 64:
+          if (j > 1) {
+            printf("    AFTR Server: ");
+            for (k = 0; k < (j - 1); k++)
+              printf("%c", isprint(data[5 + k]) ? data[5 + k] : '.');
+            printf("\n");
+          }
+          break;
+        case 99:
+          if (j >= 16)
+            for (k = 0; k < (j / 16); k++)
+              printf("    DHCPv4OverIPv6 Server: %s\n", thc_ipv62notation((unsigned char*)data + 4 + (k * 16)));
+          break;
+        case 199:
+          if (j >= 16)
+            for (k = 0; k < (j / 16); k++)
+              printf("    ?199? Server: %s\n", thc_ipv62notation((unsigned char*)data + 4 + (k * 16)));
           break;
         default:
           printf("    Unknown option type: %d\n", i);
@@ -130,14 +208,15 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
       len -= (4 + j);
       data += (4 + j);
     }
+    printf("\n");
   }
 }
 
 int main(int argc, char *argv[]) {
-  char mac[6] = { 0, 0x0c, 0, 0, 0, 0 }, *pkt = NULL;
-  char wdatabuf[1024];
+  char mac[6] = { 0, 0x0c, 0, 0, 0, 0 }, *pkt = NULL, *pkt2 = NULL;
+  char wdatabuf[1024], wdatabuf2[1024];
   unsigned char *mac6 = mac, *src, *dst;
-  int i, s, len, pkt_len = 0;
+  int i, s, len, len2, pkt_len = 0, pkt2_len = 0;
   unsigned long long int count = 0;
   pcap_t *p = NULL;
   int do_all = 1, use_real_mac = 1, use_real_link = 1;
@@ -156,6 +235,7 @@ int main(int argc, char *argv[]) {
       break;
     case '1':
       do_all = 0;
+      break;
     case 'r':
       i = 0;
       break;                    // just to ignore -r
@@ -191,8 +271,11 @@ int main(int argc, char *argv[]) {
   }
   len = sizeof(solicit);
   memcpy(wdatabuf, solicit, len);
+  len2 = sizeof(inforeq);
+  memcpy(wdatabuf2, inforeq, len2);
 
   printf("Sending DHCPv6 Solicitate message ...\n");
+  printf("Sending DHCPv6 Information Request message ...\n");
   if (!use_real_link)
     memcpy(src + 8, (char *) &count, 8);
     // start0: 1-3 rand, 18-21 rand, 22-27 mac, 32-35 rand
@@ -203,17 +286,25 @@ int main(int argc, char *argv[]) {
   }
   if (!use_real_mac)
     memcpy(wdatabuf + 22, mac, 6);
+  if (!use_real_mac)
+    memcpy(wdatabuf2 + 18, mac, 6);
   memcpy(wdatabuf + 1, (char *) &count + _TAKE3, 3);
+  memcpy(wdatabuf2 + 1, (char *) &count + _TAKE3, 3);
 
   if ((pkt = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt_len, src, dst, 1, 0, 0, 0, 0)) == NULL)
     return -1;
   if (thc_add_udp(pkt, &pkt_len, 546, 547, 0, wdatabuf, len) < 0)
     return -1;
-    // we have to tone it down, otherwise we will not get advertisements
   if (thc_generate_and_send_pkt(interface, mac6, NULL, pkt, &pkt_len) < 0)
     printf("!");
-  alarm(5);
+  if ((pkt2 = thc_create_ipv6_extended(interface, PREFER_LINK, &pkt2_len, src, dst, 1, 0, 0, 0, 0)) == NULL)
+    return -1;
+  if (thc_add_udp(pkt2, &pkt2_len, 546, 547, 0, wdatabuf2, len2) < 0)
+    return -1;
+  if (thc_generate_and_send_pkt(interface, mac6, NULL, pkt2, &pkt2_len) < 0)
+    printf("!");
   signal(SIGALRM, clean_exit);
+  alarm(3);
 //  i = thc_send_pkt(interface, pkt, &pkt_len);
   pkt = thc_destroy_packet(pkt);
   while (1) {

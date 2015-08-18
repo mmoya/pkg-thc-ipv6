@@ -15,8 +15,8 @@ char *multicast6 = NULL;
 int empty = 0;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-l] interface add|delete|query [multicast-address [target-address [ttl [own-ip [own-mac-address [destination-mac-address]]]]]]\n\n", prg);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("Syntax: %s [-l] interface add|delete|query [multicast-address [target-address-to-subscribe-from [ttl [own-ip [own-mac-address [destination-mac-address]]]]]]\n\n", prg);
   printf("This uses the MLDv2 protocol. Only a subset of what the protocol is able to\n");
   printf("do is possible to implement via a command line. Code it if you need something.\n");
   printf("Ad(d)vertise or delete yourself - or anyone you want - in a multicast group of your choice\n");
@@ -66,7 +66,7 @@ void check_packets(u_char *foo, const struct pcap_pkthdr *header, const unsigned
 
 int main(int argc, char *argv[]) {
   unsigned char *pkt1 = NULL, buf[36];
-  unsigned char *dst6 = NULL, *src6 = NULL, srcmac[16] = "", *mac = srcmac, dstmac[16] = "", *dmac = dstmac;
+  unsigned char *dst6 = NULL, *src6 = NULL, *target6, srcmac[16] = "", *mac = srcmac, dstmac[16] = "", *dmac = dstmac;
   int pkt1_len = 0, buflen = 36, i = 0, j;
   char *interface, string[64] = "ip6 and not udp and not tcp";
   int ttl = 1, mode = 0, wait = 1, loop = 0, actionmode = 0;
@@ -127,9 +127,7 @@ int main(int argc, char *argv[]) {
     if (i == 0)
       empty = 1;
   }
-  if (argv[4] != NULL && argc > 4)
-    dst6 = thc_resolve6(argv[4]);
-  else if (mode == ICMP6_MLD_QUERY) {
+  if (mode == ICMP6_MLD_QUERY) {
     if (memcmp(multicast6, buf, 16))
       dst6 = multicast6;
     else
@@ -142,6 +140,10 @@ int main(int argc, char *argv[]) {
     src6 = thc_resolve6(argv[6]);
   else
     src6 = thc_get_own_ipv6(interface, dst6, PREFER_LINK);
+  if (argv[4] != NULL && argc > 4)
+    target6 = thc_resolve6(argv[4]);
+  else
+    target6 = NULL;
   if (rawmode == 0) {
     if (argv[7] != NULL && argc > 7)
       sscanf(argv[7], "%x:%x:%x:%x:%x:%x", (unsigned int *) &srcmac[0], (unsigned int *) &srcmac[1], (unsigned int *) &srcmac[2], (unsigned int *) &srcmac[3],
@@ -174,9 +176,11 @@ int main(int argc, char *argv[]) {
     buf[17] = 120;
   } else {
     buf[0] = actionmode;
-    buf[3] = 1;
     memcpy(buf + 4, multicast6, 16);
-    memcpy(buf + 20, src6, 16);
+    if (target6 != NULL) {
+      buf[3] = 1;
+      memcpy(buf + 20, target6, 16);
+    }
   }
   if (thc_add_icmp6(pkt1, &pkt1_len, mode, 0, wait, (unsigned char *) &buf, buflen, 0) < 0)
     return -1;
@@ -188,9 +192,10 @@ int main(int argc, char *argv[]) {
   printf("Sending packet%s for %s%s\n", loop ? "s" : "", empty ? "::" : argv[3], loop ? " (Press Control-C to end)" : "");
   do {
     thc_send_pkt(interface, pkt1, &pkt1_len);
-    sleep(5);
-    if (mode == ICMP6_MLD_QUERY)
+    if (mode == ICMP6_MLD_QUERY) {
+      sleep(5);
       while (thc_pcap_check(p, (char *) check_packets, NULL));
+    }
   } while (loop);
   return 0;                     // never reached
 }

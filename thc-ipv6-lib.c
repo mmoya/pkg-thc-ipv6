@@ -1,5 +1,5 @@
 /*
- * (c) 2013 by van Hauser / THC <vh@thc.org>
+ * (c) 2014 by van Hauser / THC <vh@thc.org>
  *
  * THC IPv6 Attack Library
  *
@@ -24,8 +24,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-//#include <linux/if.h>
 #include <net/if.h>
+#include <netinet/in.h>
+//#include <linux/if.h>
 
 /* files */
 #include <fcntl.h>
@@ -37,7 +38,6 @@
 
 /* libpcap */
 #include <pcap.h>
-#include "thc-ipv6.h"
 
 #ifdef _HAVE_SSL
   /* libssl */
@@ -65,6 +65,10 @@
   #include <linux/if_ether.h>
   #include <linux/netlink.h>
 #endif
+
+#include "thc-ipv6.h"
+
+/***********************************************************/
 
 // exported to external via thc-ipv6.h
 int debug = 0;
@@ -253,8 +257,10 @@ unsigned char *thc_ipv62string(unsigned char *ipv6) {
         string[a * 2 + 1] = '0' + ipv6[a] % 16;
     }
     string[32] = 0;
-  } else
+  } else {
+    free(string);
     return NULL;
+  }
 
   return string;
 }
@@ -268,8 +274,10 @@ unsigned char *thc_string2ipv6(unsigned char *string) {
       ipv6[a] = (string[2 * a] >= 'a' ? 10 + string[2 * a] - 'a' : string[2 * a] - '0') * 16;
       ipv6[a] += string[2 * a + 1] >= 'a' ? 10 + string[2 * a + 1] - 'a' : string[2 * a + 1] - '0';
     }
-  } else
+  } else {
+    free(ipv6);
     return NULL;
+  }
 
   return ipv6;
 }
@@ -284,8 +292,10 @@ unsigned char *thc_string2notation(unsigned char *string) {
       notation[4 + a * 5] = ':';
     }
     notation[39] = 0;
-  } else
+  } else {
     return NULL;
+    free(notation);
+  }
 
   thc_notation2beauty(notation);
   return notation;
@@ -326,7 +336,7 @@ int checksum_pseudo_header(unsigned char *src, unsigned char *dst, unsigned char
   unsigned char ptr[40 + length + 48];
   int checksum;
 
-  if (src == NULL || dst == NULL || data == NULL || length < 0)
+  if (((type != NXT_IP4 && type != NXT_ICMP4) && (src == NULL || dst == NULL)) || data == NULL || length < 0)
     return -1;
 
   if (length + 40 > 65535)
@@ -335,7 +345,7 @@ int checksum_pseudo_header(unsigned char *src, unsigned char *dst, unsigned char
 
   memset(&ptr, 0, 40 + length);
   
-  if (type == NXT_IP4 || type == NXT_IP4_RUDIMENTARY) {
+  if (type == NXT_IP4 || type == NXT_IP4_RUDIMENTARY || type == NXT_ICMP4) {
     memcpy(ptr, data, length);
     checksum = calculate_checksum(ptr, length);
   } else {
@@ -422,8 +432,10 @@ int thc_get_mtu(char *interface) {
     return -1;
   memset(&ifr, 0, sizeof(ifr));
   snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-  if (ioctl(s, SIOCGIFMTU, (int8_t *) & ifr) < 0)
+  if (ioctl(s, SIOCGIFMTU, (int8_t *) & ifr) < 0) {
+    close(s);
     return -1;
+  }
 
   close(s);
   if (debug)
@@ -476,8 +488,10 @@ unsigned char *thc_get_own_mac(char *interface) {
     return NULL;
   memset(&ifr, 0, sizeof(ifr));
   snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-  if (ioctl(s, SIOCGIFHWADDR, (int8_t *) & ifr) < 0)
+  if (ioctl(s, SIOCGIFHWADDR, (int8_t *) & ifr) < 0) {
+    close(s);
     return NULL;
+  }
 
   mac = malloc(6);
   memcpy(mac, &ifr.ifr_hwaddr.sa_data, 6);
@@ -491,7 +505,7 @@ unsigned char *thc_get_own_mac(char *interface) {
 unsigned char *thc_get_own_ipv6(char *interface, unsigned char *dst, int prefer) {
   char *myipv6;
   FILE *f;
-  unsigned char ipv6[34] = "", save[34] = "", tmpbuf[34], buf[1024], *tmpdst = NULL;
+  unsigned char ipv6[36] = "", save[34] = "", tmpbuf[34], buf[1024], *tmpdst = NULL;
   int a, b, c, done = 0, picky = 0, orig_prefer = prefer;
   unsigned char tmpd, tmpb;
   char bla[16];
@@ -513,6 +527,8 @@ unsigned char *thc_get_own_ipv6(char *interface, unsigned char *dst, int prefer)
   while (done < 2 && picky < 2) {
     if ((f = fopen("/proc/net/if_inet6", "r")) == NULL) {
       fprintf(stderr, "Error: /proc/net/if_inet6 does not exist, no IPv6 support on your Linux box!\n");
+      if (tmpdst != NULL)
+        free(tmpdst);
       return NULL;
     }
 
@@ -526,12 +542,13 @@ unsigned char *thc_get_own_ipv6(char *interface, unsigned char *dst, int prefer)
     while (done < 2 && fgets(buf, sizeof(buf), f) != NULL) {
       if (strncmp(interface, &buf[strlen(buf) - strlen(interface) - 1], strlen(interface)) == 0) {
         sscanf(buf, "%s %x %x %x %s", tmpbuf, &a, &b, &c, bla);
-        if (c == prefer && done == 0) {
+        if (c == prefer && done != 2) {
           ipv6[0] = c;          // scope type
           ipv6[1] = b;          // netmask
           memcpy(&ipv6[2], tmpbuf, 32);
           ipv6[34] = 0;
-          if (dst == NULL)
+//printf("(c scope/prefer is %d) dst %p == NULL && ( prefer %d == %d PREFER_LINK || %c != f )\n", c, dst, prefer, PREFER_LINK, tmpbuf[0]);
+          if (dst == NULL && (prefer == PREFER_LINK || tmpbuf[0] != 'f'))
             done = 2;
           else
             done = 1;
@@ -558,35 +575,40 @@ unsigned char *thc_get_own_ipv6(char *interface, unsigned char *dst, int prefer)
             }
           } 
         }
+//printf("done is %d - %s - %s\n", done, tmpbuf, buf);
         // ensure that 2000::/3 and fc00::/7 is selected correctly
         if (done != 2 && dst != NULL) {
           if (
                ((strncmp(tmpbuf, "fc", 2) == 0 || strncmp(tmpbuf, "fd", 2) == 0) && (strncmp(tmpdst, "fc", 2) == 0 || strncmp(tmpdst, "fd", 2) == 0))
               ||
                ((tmpdst[0] == '2' || tmpdst[0] == '3') && (tmpbuf[0] == '2' || tmpbuf[0] == '3')) ) {
-//printf("SAVE! %s -> %s\n", tmpbuf, tmpdst);
+/*
+printf("SAVE! %s -> %s\n", tmpbuf, tmpdst);
             memcpy(save + 2, tmpbuf, 32);
             memset(ipv6, 0, sizeof(ipv6));
-            done = 0;
+*/
+            done = 2;
           }
+//printf("here! %d => %c%c != %c%c \n", save[2], tmpbuf[0], tmpbuf[1], tmpdst[0], tmpdst[1]);
           if ( save[2] == 0
               &&
                ( ((strncmp(tmpbuf, "fc", 2) == 0 || strncmp(tmpbuf, "fd", 2) == 0) && (tmpdst[0] == '2' || tmpdst[0] == '3'))
               ||
-                 ((strncmp(tmpdst, "fc", 2) == 0 && strncmp(tmpdst, "fd", 2) == 0) && (tmpbuf[0] == '2' || tmpbuf[0] == '3')) ) ) {
+                 ((strncmp(tmpdst, "fc", 2) == 0 || strncmp(tmpdst, "fd", 2) == 0) && (tmpbuf[0] == '2' || tmpbuf[0] == '3')) ) ) {
 //printf("RESORT! %c -> %c\n", tmpbuf[1], tmpdst[0]);
             memcpy(save + 2, tmpbuf, 32);
             memset(ipv6, 0, sizeof(ipv6));
             done = 0;
           }
         }
+//printf("final done is %d - %s - %s\n", done, tmpbuf, buf);
       }
     }
     fclose(f);
     picky++;
 //printf("x %d, %s == 0, %s > 0\n", done, ipv6 + 2, save + 2 );
     if (done < 2 && strlen(&ipv6[2]) == 0 && strlen(&save[2]) > 0) {
-//printf("y\n");
+//printf("RESORT IS TAKEN => %s\n", save + 2);
       memcpy(ipv6, save, sizeof(ipv6));
       done = 2;
     }
@@ -602,6 +624,8 @@ unsigned char *thc_get_own_ipv6(char *interface, unsigned char *dst, int prefer)
   if (strlen(&ipv6[2]) == 0) {
     if (_thc_ipv6_showerrors)
       fprintf(stderr, "Warning: no IPv6 address on interface defined\n");
+    if (tmpdst != NULL)
+      free(tmpdst);
     return NULL;
   }
 
@@ -687,6 +711,7 @@ unsigned char *thc_lookup_ipv6_mac(char *interface, unsigned char *dst) {
     return NULL;
   mysrc = p1;
   if ((p2 = thc_ipv62notation(p1)) == NULL) {
+    free(p1);
     return NULL;
   }
   strcat(string, p2);
@@ -1243,11 +1268,13 @@ int thc_send_as_overlapping_first_fragment6(char *interface, unsigned char *src,
       if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 0, 0, 0, 0, 0)) == NULL) {
         free(srcmac);
         free(dstmac);
+        free(adata);
         return -1;
       }
       if (thc_add_hdr_fragment(pkt, &pkt_len, dptr / 8, count == 1 ? 0 : 1, id)) {
         free(srcmac);
         free(dstmac);
+        free(adata);
         return -1;
       }
 
@@ -1259,6 +1286,7 @@ int thc_send_as_overlapping_first_fragment6(char *interface, unsigned char *src,
       if (thc_add_data6(pkt, &pkt_len, NXT_DST, buf, count == 1 ? last_size : frag_len)) {
         free(srcmac);
         free(dstmac);
+        free(adata);
         return -1;
       }
 
@@ -1278,12 +1306,14 @@ int thc_send_as_overlapping_first_fragment6(char *interface, unsigned char *src,
   if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 0, 0, 0, 0, 0)) == NULL) {
     free(srcmac);
     free(dstmac);
+    free(adata);
     return -1;
   }
 
   if (thc_add_hdr_fragment(pkt, &pkt_len, 0, 1, id)) {
     free(srcmac);
     free(dstmac);
+    free(adata);
     return -1;
   }
 
@@ -1292,6 +1322,7 @@ int thc_send_as_overlapping_first_fragment6(char *interface, unsigned char *src,
   if (thc_add_data6(pkt, &pkt_len, NXT_DST, buf, frag_len)) {
     free(srcmac);
     free(dstmac);
+    free(adata);
     return -1;
   }
 
@@ -1308,7 +1339,7 @@ int thc_ping6(char *interface, unsigned char *src, unsigned char *dst, int size,
   unsigned char *pkt = NULL;
   int pkt_len;
   unsigned char buf[size];
-  int ret, counter = count;
+  int ret = 0, counter = count;
 
   memset(buf, 'A', size);
 
@@ -1733,6 +1764,7 @@ unsigned char *thc_create_ipv6_extended(char *interface, int prefer, int *pkt_le
   if (dst == NULL || my_src == NULL) {
     if (src == NULL)
       free(my_src);
+    free(pkt);
     return NULL;
   }
 
@@ -1836,10 +1868,10 @@ int thc_add_ipv4(unsigned char *pkt, int *pkt_len, int src, int dst) {
   return thc_add_ipv4_extended(pkt, pkt_len, src, dst, 0, 0, 64);
 }
 
-int thc_add_ipv4_rudimentary(unsigned char *pkt, int *pkt_len, int src4, int dst4, int port) {
-#define THC_IPv4_RUDIMENTARY_LEN (20 + 8)
+int thc_add_ipv4_rudimentary(unsigned char *pkt, int *pkt_len, int src4, int dst4, int sport, int port) {
+#define THC_IPv4_RUDIMENTARY_LEN (20 + 16)
   thc_ipv6_hdr *hdr = (thc_ipv6_hdr *) pkt;
-  char *ihdr = malloc(THC_IPv4_RUDIMENTARY_LEN); // ipv4 hdr + udp-emtpy
+  char *ihdr = malloc(THC_IPv4_RUDIMENTARY_LEN); // ipv4 hdr + udp/icmp + 8 data
   thc_ipv6_ext_hdr *ehdr;
   int checksum;
 
@@ -1859,20 +1891,29 @@ int thc_add_ipv4_rudimentary(unsigned char *pkt, int *pkt_len, int src4, int dst
   hdr->final_type = NXT_IP4_RUDIMENTARY;
 
   // set ihdr buffer
+  memset(ihdr + 28, 'A', 8);
   ihdr[0] = 0x45;
   ihdr[3] = THC_IPv4_RUDIMENTARY_LEN;
   ihdr[4] = getpid() % 256;
   ihdr[5] = getpid() / 256;
-  ihdr[8] = 0xff;
+  ihdr[6] = 64; // dont fragment bit
+  ihdr[8] = 63; // TTL
   if (port == -1) {
     ihdr[9] = NXT_ICMP4;
     ihdr[20] = 8; // ICMPv4 Echo Request
-    ihdr[22] = 0xf7;
-    ihdr[23] = 0xff;
+    ihdr[22] = 0x00; // checksum
+    ihdr[23] = 0x00; // checksum
+    ihdr[24] = sport / 256;
+    ihdr[25] = sport % 256;
+    ihdr[26] = 3;
+    ihdr[27] = 4;
+    checksum = checksum_pseudo_header(NULL, NULL, NXT_ICMP4, ihdr + 20, THC_IPv4_RUDIMENTARY_LEN - 20);
+    ihdr[22] = (((unsigned)checksum / 256) % 256);
+    ihdr[23] = (unsigned)checksum % 256;
   } else {
     ihdr[9] = NXT_UDP;
-    ihdr[20] = 5;  // srcport
-    ihdr[21] = port % 256; // srcport
+    ihdr[20] = sport / 256; // srcport
+    ihdr[21] = sport % 256; // srcport
     ihdr[22] = (port / 256) % 256;
     ihdr[23] = port % 256;
     ihdr[25] = 8; // udp pkt length
@@ -1882,8 +1923,8 @@ int thc_add_ipv4_rudimentary(unsigned char *pkt, int *pkt_len, int src4, int dst
   memcpy(ihdr + 16, (char*)&dst4 + _TAKE4, 4);
 
   checksum = checksum_pseudo_header(NULL, NULL, NXT_IP4, ihdr, 20);
-  ihdr[10] = checksum / 256;
-  ihdr[11] = checksum % 256;
+  ihdr[10] = (((unsigned)checksum / 256) % 256);
+  ihdr[11] = (unsigned)checksum % 256;
 
   hdr->length += THC_IPv4_RUDIMENTARY_LEN;
   *pkt_len += THC_IPv4_RUDIMENTARY_LEN;
@@ -2301,7 +2342,6 @@ int thc_add_pim(unsigned char *pkt, int *pkt_len, unsigned char type, unsigned c
   hdr->final = (char *) nehdr;
   hdr->final_type = NXT_PIM;
 
-  memset(buf, 0, sizeof(buf));
   buf[0] = type;
   if (type < 16)
     buf[0] += 32; // ensure we set a PIM version (here: v2)
@@ -2339,7 +2379,6 @@ int thc_add_data6(unsigned char *pkt, int *pkt_len, unsigned char type, unsigned
   hdr->final = (char *) nehdr;
   hdr->final_type = NXT_DATA;
 
-  memset(buf, 0, sizeof(buf));
   memcpy(buf, data, data_len);
 
   nehdr->next_segment = NULL;
@@ -2646,12 +2685,10 @@ int thc_generate_pkt(char *interface, unsigned char *srcmac, unsigned char *dstm
     } else {
       if (type == NXT_IP4) {
         is_ip4 = bufptr;
-        printf(""); // to be filled XXX TODO FIXME
-        
+        printf("NXT_IP4 NOT IMPLEMENTED\n"); // to be filled XXX TODO FIXME
         
       } else if (type == NXT_IP6) {
-        printf(""); // to be filled XXX TODO FIXME
-        
+        printf("NXT_IP6 NOT IMPLEMENTED"); // to be filled XXX TODO FIXME
         
       }
     }
@@ -3040,8 +3077,10 @@ thc_key_t *thc_generate_key(int key_len) {
 
   if ((key = (thc_key_t *) malloc(sizeof(thc_key_t))) == NULL)
     return NULL;
-  if ((key->rsa = RSA_generate_key(key_len, 65535, NULL, NULL)) == NULL)
+  if ((key->rsa = RSA_generate_key(key_len, 65535, NULL, NULL)) == NULL) {
+    free(key);
     return NULL;
+  }
   key->len = key_len;
   return key;
 }
@@ -3073,8 +3112,8 @@ thc_cga_hdr *thc_generate_cga(unsigned char *prefix, thc_key_t * key, unsigned c
   /* DER-encode public key */
   klen = i2d_RSA_PUBKEY(key->rsa, NULL);
   if ((cga_hdr->pub_key = (unsigned char *) malloc(klen)) == NULL) {
-    return NULL;
     free(cga_hdr);
+    return NULL;
   }
   p = cga_hdr->pub_key;
   klen = i2d_RSA_PUBKEY(key->rsa, &p);
@@ -3361,7 +3400,6 @@ int thc_bind_udp_port(int port) {
     return -1;
 #ifdef SO_REUSEPORT
   setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on));
-  printf("reuseport\n");
 #endif
 #ifdef SO_REUSEADDR
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
@@ -3374,8 +3412,10 @@ int thc_bind_udp_port(int port) {
 #ifdef IPV6_V6ONLY
   setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
 #endif
-  if (bind(s, res->ai_addr, res->ai_addrlen) < 0)
+  if (bind(s, res->ai_addr, res->ai_addrlen) < 0) {
+    close(s);
     return -1;
+  }
   freeaddrinfo(res);
 
   return s;
@@ -3393,3 +3433,4 @@ int thc_bind_multicast_to_socket(int s, char *interface, char *src) {
     return -1;
   return 0;
 }
+

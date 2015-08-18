@@ -19,7 +19,7 @@ unsigned char *frip6, *frmac;
 thc_ipv6_hdr *frhdr = NULL;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-E type] [-A network/prefix] [-R network/prefix] [-D dns-server] [-s sourceip] [-S sourcemac] [-ardl seconds] [-Tt ms] [-n no] [-i interval] interface [target]\n\n", prg);
   printf("Options:\n");
   printf(" -A network/prefix  add autoconfiguration network (up to %d times)\n", MAX_ENTRIES);
@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'n':
       to_send = atoi(optarg);
-      if (to_send < 1 || mtu > 255) {
+      if (to_send < 1 || to_send > 255) {
         fprintf(stderr, "Error: -n argument is invalid, must be between 1 and 255: %s\n", optarg);
         exit(-1);
       }
@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
       else if (prio == 0)
         buf[i++] = 0x18;
       else
-        buf[i++] == 0x10;
+        buf[i++] = 0x10;
       buf[i++] = rlife / 16777216;
       buf[i++] = (rlife % 16777216) / 65536;
       buf[i++] = (rlife % 65536) / 256;
