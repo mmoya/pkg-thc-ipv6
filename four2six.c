@@ -14,13 +14,15 @@
 #include "thc-ipv6.h"
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-FHD] [-s src6] interface ipv6-to-ipv4-gateway ipv4-src ipv4-dst [port]\n\n", prg);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("Syntax: %s [-FHD] [-m srcmac] [-s src6] [-p srcport] interface ipv6-to-ipv4-gateway ipv4-src ipv4-dst [port]\n\n", prg);
   printf("Options:\n");
-  printf("  -F       insert atomic fragment header (can be set multiple times)\n");
-  printf("  -H       insert and empty hop-by-hop header\n");
-  printf("  -D       insert a large destination header that fragments the packet\n");
-  printf("  -s src6  set a specific IPv6 source address\n");
+  printf("  -F         insert atomic fragment header (can be set multiple times)\n");
+  printf("  -H         insert and empty hop-by-hop header\n");
+  printf("  -D         insert a large destination header that fragments the packet\n");
+  printf("  -p srcport  set a specific UDP source port or Ping ID\n");
+  printf("  -s src6    set a specific IPv6 source address\n");
+  printf("  -m srcmac  set a specific MAC source address\n");
   printf("\nSend an IPv4 packet to an IPv6 4to6 gateway. If a port is specified, a UDP packet is sent, otherwise an ICMPv4 ping.\n");
   
   exit(-1);
@@ -28,18 +30,18 @@ void help(char *prg) {
 
 int main(int argc, char *argv[]) {
   unsigned char *pkt1 = NULL, buf2[6], buf3[1500];
-  unsigned char *gateway6, *src6 = NULL, *dst6 = NULL, srcmac[16] = "", *mac = srcmac;
+  unsigned char *gateway6, *src6 = NULL, *dst6 = NULL, srcmac[16] = "", *mac = NULL;
   int pkt1_len = 0, prefer = PREFER_GLOBAL, i, do_hop = 0, do_dst = 0, do_frag = 0, cnt, type = NXT_ICMP6, offset = 14;
   char *interface;
-  int src4 = 0, dst4 = 0, port = -1;
   thc_ipv6_hdr *hdr;
+  int src4 = 0, dst4 = 0, port = -1, sport = 10240 + getpid() % 10240;
 
   if (argc < 5 || strncmp(argv[1], "-h", 2) == 0)
     help(argv[0]);
 
   if (getenv("THC_IPV6_PPPOE") != NULL || getenv("THC_IPV6_6IN4") != NULL) printf("WARNING: %s is not working with injection!\n", argv[0]);
 
-  while ((i = getopt(argc, argv, "DFHs:")) >= 0) {
+  while ((i = getopt(argc, argv, "DFHs:m:p:")) >= 0) {
     switch (i) {
     case 'F':
       do_frag++;
@@ -50,10 +52,17 @@ int main(int argc, char *argv[]) {
     case 'D':
       do_dst = 1;
       break;
+    case 'm':
+      mac = srcmac;
+      sscanf(optarg, "%x:%x:%x:%x:%x:%x", (unsigned int *) &mac[0], (unsigned int *) &mac[1], (unsigned int *) &mac[2], (unsigned int *) &mac[3], (unsigned int *) &mac[4], (unsigned int *) &mac[5]);
+      break;
     case 's':
       if ((src6 = thc_resolve6(optarg)) == NULL) {
         fprintf(stderr, "Error: invalid IPv6 source address specified: %s\n", optarg);
       }
+      break;
+    case 'p':
+      sport = atoi(optarg);
       break;
     default:
       fprintf(stderr, "Error: invalid option %c\n", i);
@@ -85,12 +94,14 @@ int main(int argc, char *argv[]) {
   if (argc - optind > 4)
     port = atoi(argv[optind + 4]);
 
-  if ((mac = thc_get_own_mac(interface)) == NULL) {
-    fprintf(stderr, "Error: invalid interface %s\n", interface);
-    exit(-1);
+  if (mac == NULL) {
+    if ((mac = thc_get_own_mac(interface)) == NULL) {
+      fprintf(stderr, "Error: invalid interface %s\n", interface);
+      exit(-1);
+    }
   }
 
-  if ((pkt1 = thc_create_ipv6_extended(interface, prefer, &pkt1_len, src6, gateway6, 0, 0, 0, 0, 0)) == NULL)
+  if ((pkt1 = thc_create_ipv6_extended(interface, prefer, &pkt1_len, src6, gateway6, 64, 0, 0, 0, 0)) == NULL)
     return -1;
   if (do_hop) {
     type = NXT_HBH;
@@ -110,7 +121,7 @@ int main(int argc, char *argv[]) {
     if (thc_add_hdr_dst(pkt1, &pkt1_len, buf3, sizeof(buf3)) < 0)
       return -1;
   }
-  if (thc_add_ipv4_rudimentary(pkt1, &pkt1_len, src4, dst4, port) < 0)
+  if (thc_add_ipv4_rudimentary(pkt1, &pkt1_len, src4, dst4, sport, port) < 0)
     return -1;
   if (thc_generate_pkt(interface, mac, NULL, pkt1, &pkt1_len) < 0) {
     fprintf(stderr, "Error: Can not generate packet, exiting ...\n");

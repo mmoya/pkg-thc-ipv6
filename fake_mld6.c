@@ -15,8 +15,8 @@ char *multicast6 = NULL;
 int empty = 0;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
-  printf("Syntax: %s [-l] interface add|delete|query [multicast-address [target-address [ttl [own-ip [own-mac-address [destination-mac-address]]]]]]\n\n", prg);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("Syntax: %s [-l] interface add|delete|query [multicast-address [ttl [own-ip [own-mac-address [destination-mac-address]]]]]\n\n", prg);
   printf("Ad(d)vertise or delete yourself - or anyone you want - in a multicast group of your choice\n");
   printf("Query ask on the network who is listening to multicast addresses\n");
   printf("Use -l to loop and send (in 5s intervals) until Control-C is pressed.\n");
@@ -100,9 +100,7 @@ int main(int argc, char *argv[]) {
     if (i == 0)
       empty = 1;
   }
-  if (argv[4] != NULL && argc > 4)
-    dst6 = thc_resolve6(argv[4]);
-  else if (mode == ICMP6_MLD_QUERY) {
+  if (mode == ICMP6_MLD_QUERY) {
     if (memcmp(multicast6, buf, 16))
       dst6 = multicast6;
     else
@@ -152,9 +150,10 @@ int main(int argc, char *argv[]) {
   printf("Sending packet%s for %s%s\n", loop ? "s" : "", empty ? "::" : argv[3], loop ? " (Press Control-C to end)" : "");
   do {
     thc_send_pkt(interface, pkt1, &pkt1_len);
-    sleep(5);
-    if (mode == ICMP6_MLD_QUERY)
+    if (mode == ICMP6_MLD_QUERY) {
+      sleep(5);
       while (thc_pcap_check(p, (char *) check_packets, NULL));
+    }
   } while (loop);
   return 0;                     // never reached
 }

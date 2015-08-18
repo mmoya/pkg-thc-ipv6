@@ -124,13 +124,13 @@ int main(int argc, char *argv[]) {
       pkt = NULL;
       pkt_len = 0;
       if (print) {
-        usleep(10000);
+        usleep(5000);
         while(thc_pcap_check(p, (char *) check_packet, NULL) > 0);
       }
     }
   }
   if (print) {
-    sleep(3);
+    sleep(1);
     while(thc_pcap_check(p, (char *) check_packet, NULL) > 0);
   }
   printf("Done!\n");

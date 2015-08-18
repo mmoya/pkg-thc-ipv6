@@ -6,7 +6,7 @@
  *   - specify the reverse domain as 2001:db8::/56
  *                                or 0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
  *
- * (c) 2013 by Marc "van Hauser" Heuse <vh(at)thc.org> or <mh(at)mh-sec.de>
+ * (c) 2014 by Marc "van Hauser" Heuse <vh(at)thc.org> or <mh(at)mh-sec.de>
  * The AGPL v3 license applies to this code.
  *
  * Compile: gcc -O2 -o dnsrevenum6 dnsrevenum6.c thc-ipv6-lib.o -lcrypto -lssl -lpcap
@@ -118,7 +118,7 @@ int send_range() {
 }
 
 int deeper(int depth) {
-  unsigned char r[16], *ptr2;
+  unsigned char r[16], *ptr2, *foo;
   int i, j, ok = 0, rs = 0, len, clen, nlen;
   
   if (depth > 31)
@@ -172,14 +172,16 @@ redo:
               ptr2 += 2;
               i++;
             }
-            strcat(name, thc_ipv62notation(dst6));
+            foo = thc_ipv62notation(dst6);
+            strcat(name, foo);
+            free(foo);
             strcat(name, " is ");
             ptr2 = buf2 + 102;
             while (*ptr2 != 0 && ptr2 + *ptr2 + 1 <= buf2 + len) {
               clen = *ptr2;
               nlen = *(ptr2 + clen + 1);
               *(ptr2 + clen + 1) = 0;
-              strcat(name, ptr2 + 1);
+              strncat(name, ptr2 + 1, sizeof(name) - strlen(name) - 4);
               strcat(name, ".");
               *(ptr2 + *ptr2 + 1) = nlen;
               ptr2 += clen + 1;
@@ -191,7 +193,7 @@ redo:
                 clen = *ptr2;
                 nlen = *(ptr2 + clen + 1);
                 *(ptr2 + clen + 1) = 0;
-                strcat(name, ptr2 + 1);
+                strncat(name, ptr2 + 1, sizeof(name) - strlen(name) - 4);
                 strcat(name, ".");
                 *(ptr2 + *ptr2 + 1) = nlen;
                 ptr2 += clen + 1;
@@ -247,7 +249,7 @@ int main(int argc, char *argv[]) {
   prg = argv[0];
 
   if (argc < 3) {
-    printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+    printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
     printf("Syntax: %s dns-server ipv6address\n\n", argv[0]);
     printf("Performs a fast reverse DNS enumeration and is able to cope with slow servers.\n");
     printf("Examples:\n");

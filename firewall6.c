@@ -28,7 +28,7 @@ unsigned char *dst, *psrc, is_srcport = 0;
 pcap_t *p;
 
 void help(char *prg) {
-  printf("%s %s (c) 2013 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
+  printf("%s %s (c) 2014 by %s %s\n\n", prg, VERSION, AUTHOR, RESOURCE);
   printf("Syntax: %s [-Hu] interface destination port [test-case-no]\n\n", prg);
   printf("Performs various ACL bypass attempts to check implementations.\n");
   printf("Defaults to TCP ports, option -u switches to UDP.\nOption -H prints the hop count.\n");
@@ -339,6 +339,31 @@ int main(int argc, char *argv[]) {
       check_for_reply();
     } else
       printf("skipped (6in4)\n");
+    pkt = thc_destroy_packet(pkt);
+    curr++;
+  }
+  
+  if (only == ++count || only == 0) {
+    printf("Test %2d: sending IPv5 packet\t\t", count);
+    poffset = 0;
+    ptype = -1;
+    if ((pkt = thc_create_ipv6_extended(interface, PREFER_GLOBAL, &pkt_len, src, dst, 64, 0, count, 0, 5)) == NULL)
+      return -1;
+    if (udp == 0) {
+      if (thc_add_tcp(pkt, &pkt_len, sport + count, port, sport + count, 0, TCP_SYN, 0x3840, 0, NULL, 0, NULL, 0) == -1)
+        return -1;
+    } else {
+      if (thc_add_udp(pkt, &pkt_len, sport + count, port, 0, NULL, 0) == -1)
+        return -1;
+    }
+    if (thc_generate_pkt(interface, srcmac, dstmac, pkt, &pkt_len) == -1)
+      return -1;
+    while (thc_pcap_check(p, (char *) ignoreit, NULL) > 0);
+    while (thc_send_pkt(interface, pkt, &pkt_len) == -1)
+      usleep(1);
+    while (thc_send_pkt(interface, pkt, &pkt_len) == -1)
+      usleep(1);
+    check_for_reply();
     pkt = thc_destroy_packet(pkt);
     curr++;
   }

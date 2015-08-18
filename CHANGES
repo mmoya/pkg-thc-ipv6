@@ -7,6 +7,66 @@ thc-ipv6 toolkit development. If this matches *you* send me an
 email to vh (at) thc (dot) org , with "thc-ipv6 antispam" in the
 subject line.
 
+v2.7 public release (31C3)
+ * All flood_* tools:
+   - changed destination so that targets can be remote.
+     Yes this should not work, but sometimes it does :-)
+ * New tool: fuzz_dhcpc6 - DHCPv6 client fuzzer, submitted by Darrell Ambro, thanks a lot!
+ * Added new script: six2four.sh - send an IPv6 packet via a 6to4 gateway
+ * Added new script: grep6.pl - extracts an IPv6 in all possible notations from a file (from Eric Vyncke)
+ * alive6:
+   - setting -C twice increases the common address search space significantly
+   - fixed from-to definition implementation
+   - added "-y step" option, to define the step range when performing from-to
+     scans (e.g. 2001:1::0-ff), default step range is of course 1, max is 256
+   - selects the source IPv6 address for every new target now; waiting, if no
+     fitting IPv6 address is present on the interface until one is
+   - if you use -s for alive scanning, the new "one packet fingerprinting" functionality
+     is automatically used, courtesy of warlord @ nologin from his poison tool
+   - error message if a packet can not be send for >50ms, and waiting for 60 seconds
+   - cleaned up help output and add -hh more help/options output
+ * thcsyn6:
+   - added -m dstmac option (good for DOSing local, esp. hot standby addresses)
+   - added -d dst hdr option
+   - documented -a hbh-ra option
+ * denial6:
+   - added five more test cases with HBH-RA and AH headers
+ * flood_router26
+   - added -a hopbyhop with router alert option
+   - changed a default so the attacks do not show up in Snort IDS
+ * flood_redir6
+   - added -a hopbyhop with router alert option
+ * flood_solicitate6
+   - added query address parameter option
+   - added -a hopbyhop with router alert option
+ * fuzz_ip6:
+   - fixes for HBH and DST EH fuzzing
+ * thcping6:
+   - added -x flood option
+   - added -e ethertype option
+   - added -V IP version option
+   - added -L payload length option
+   - added -N next header option
+   - now prints fragID of fragmented replies
+ * implementation6:
+   - a few more test cases and fixes
+ * dump_dhcp6
+   - more option decoding, better solicitate packet
+   - added sending information request packet
+ * four2six:
+   - support for source port and ping ID (required for AFTR)
+ * trace6:
+   - support for MTU sizes > 2500 added
+ * implementation6
+   - fixed to test cases where the wrong fragment nxt header was set (thanks to Gabriel Bertram for reporting)
+ * inverse_lookup6
+   - fixed to display only the IPv6 addresses (and not interpret other data as such)
+ * thc-ipv6-lib
+   - global addresses are now prefered over unique local if no destination is set
+   - fixed a bug in IPv4 CRC calculation function
+ * cppcheck and Coverity issues checked and fixed
+ * added spelling fixes by Debian maintainers
+ 
 
 v2.5 public release (30C3)
  => see 2.4
