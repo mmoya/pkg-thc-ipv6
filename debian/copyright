@@ -2,6 +2,8 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: The Hacker Choice's IPv6 Attack Toolkit
 Upstream-Contact: van Hauser <vh@thc.org>
 Source: http://www.thc.org/thc-ipv6/
+
+Files: *
 License: AGPL-3.0
 Copyright: 2005-2013 van Hauser <vh@thc.org>
 
