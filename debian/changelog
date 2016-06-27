@@ -1,15 +1,15 @@
-thc-ipv6 (2.7-1~1.gbpd9ae68) UNRELEASED; urgency=medium
+thc-ipv6 (2.7-1) unstable; urgency=medium
 
-  ** SNAPSHOT build @d9ae68ec2eccc7313ad99f8b7c3dba7b133b0f1c **
+  * [4496b5b] d/control: add Vcs-Git entry
+  * [feb4db4] d/control: bump standars to 3.9.6
+  * [a2ed220] Imported Upstream version 2.7
+  * [e43fd75] d/patches: drop Fix-spelling-errors.patch
+  * [fc558de] d/copyright: include specific copyright notice for all files
+  * [b4c4107] d/docs: include HOWTO-INJECT in the binary package
+  * [bd91c04] d/control: Maintainer is now pkg-security
+  * [544d739] d/control: update Vcs-Git and Vcs-Browser fields
 
-  [ Arturo Borrero Gonzalez ]
-  * d/control: add Vcs-Git entry
-  * d/control: bump standars to 3.9.6
-  * Imported Upstream version 2.7
-
-  [ aborrero ]
-
- -- Arturo Borrero Gonzalez <aborrero@cica.es>  Tue, 18 Aug 2015 12:44:28 +0200
+ -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Mon, 27 Jun 2016 10:24:03 +0200
 
 thc-ipv6 (2.5-3) unstable; urgency=medium
 
